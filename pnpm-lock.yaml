@@ -43,8 +43,8 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4(postcss-html@1.7.0)(stylelint@16.24.0(typescript@5.9.2))
       stylelint-config-standard:
-        specifier: ^39.0.0
-        version: 39.0.0(stylelint@16.24.0(typescript@5.9.2))
+        specifier: ^39.0.1
+        version: 39.0.1(stylelint@16.24.0(typescript@5.9.2))
 
 packages:
 
@@ -56,6 +56,9 @@ packages:
 
   '@astrojs/compiler@2.13.0':
     resolution: {integrity: sha512-mqVORhUJViA28fwHYaWmsXSzLO9osbdZ5ImUfxBarqsYdMlPbqAqGJCxsNzvppp1BEzc1mJNjOVvQqeDN8Vspw==}
+
+  '@astrojs/compiler@2.13.1':
+    resolution: {integrity: sha512-f3FN83d2G/v32ipNClRKgYv30onQlMZX1vCeZMjPsMMPl1mDpmbl0+N5BYo4S/ofzqJyS5hvwacEo0CCVDn/Qg==}
 
   '@astrojs/internal-helpers@0.7.3':
     resolution: {integrity: sha512-6Pl0bQEIChuW5wqN7jdKrzWfCscW2rG/Cz+fzt4PhSQX2ivBpnhXgFUCs0M3DCYvjYHnPVG2W36X5rmFjZ62sw==}
@@ -1762,6 +1765,7 @@ packages:
   sitemap@8.0.0:
     resolution: {integrity: sha512-+AbdxhM9kJsHtruUF39bwS/B0Fytw6Fr1o4ZAIAEqA6cke2xcoO2GleBw9Zw7nRzILVEgz7zBM5GiTJjie1G9A==}
     engines: {node: '>=14.0.0', npm: '>=6.0.0'}
+    deprecated: 'SECURITY: Multiple vulnerabilities fixed in 8.0.1 (XML injection, path traversal, command injection, protocol injection). Upgrade immediately: npm install sitemap@8.0.1'
     hasBin: true
 
   slash@3.0.0:
@@ -1821,8 +1825,8 @@ packages:
     peerDependencies:
       stylelint: ^16.23.0
 
-  stylelint-config-standard@39.0.0:
-    resolution: {integrity: sha512-JabShWORb8Bmc1A47ZyJstran60P3yUdI1zWMpGYPeFiC6xzHXJMkpKAd8EjIhq3HPUplIWWMDJ/xu0AiPd+kA==}
+  stylelint-config-standard@39.0.1:
+    resolution: {integrity: sha512-b7Fja59EYHRNOTa3aXiuWnhUWXFU2Nfg6h61bLfAb5GS5fX3LMUD0U5t4S8N/4tpHQg3Acs2UVPR9jy2l1g/3A==}
     engines: {node: '>=18.12.0'}
     peerDependencies:
       stylelint: ^16.23.0
@@ -2289,6 +2293,9 @@ snapshots:
       - prettier-plugin-astro
 
   '@astrojs/compiler@2.13.0': {}
+
+  '@astrojs/compiler@2.13.1':
+    optional: true
 
   '@astrojs/internal-helpers@0.7.3': {}
 
@@ -4013,7 +4020,7 @@ snapshots:
 
   prettier-plugin-astro@0.14.1:
     dependencies:
-      '@astrojs/compiler': 2.13.0
+      '@astrojs/compiler': 2.13.1
       prettier: 3.3.3
       sass-formatter: 0.7.9
     optional: true
@@ -4306,7 +4313,7 @@ snapshots:
     dependencies:
       stylelint: 16.24.0(typescript@5.9.2)
 
-  stylelint-config-standard@39.0.0(stylelint@16.24.0(typescript@5.9.2)):
+  stylelint-config-standard@39.0.1(stylelint@16.24.0(typescript@5.9.2)):
     dependencies:
       stylelint: 16.24.0(typescript@5.9.2)
       stylelint-config-recommended: 17.0.0(stylelint@16.24.0(typescript@5.9.2))
