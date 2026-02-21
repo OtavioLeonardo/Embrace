@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.0/schema.json",
   "files": {
     "includes": [
       "**",
@@ -24,22 +24,9 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-      "css": {
-        "noUnknownAtRules": {
-          "level": "warn",
-          "options": {
-            "allow": [
-              "tailwind",
-              "apply",
-              "variants",
-              "responsive",
-              "screen",
-              "layer",
-              "config",
-              "theme"
-            ]
-          }
-        }
+      "suspicious": {
+        "noControlCharactersInRegex": "off",
+        "noExplicitAny": "off"
       }
     }
   },

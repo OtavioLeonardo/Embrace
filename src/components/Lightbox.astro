@@ -19,7 +19,7 @@ const {
 } = Astro.props;
 
 const {
-  showInfoTrigger = true,
+  showInfoTrigger: _showInfoTrigger = true,
   showProgress = true,
   enableKeyboard = true,
   enableSwipe = true,
@@ -111,10 +111,13 @@ const {
 )}
 
 <script is:inline define:vars={{ items, enableKeyboard, enableSwipe, animationDuration }}>
+  // items 来自 define:vars，在此声明避免 IDE 警告
+  // @ts-nocheck - Astro inline script 类型检查限制
+  var items;
+  
   // 灯箱功能
   function initLightbox() {
     const lightbox = document.getElementById('lightbox');
-    const lbScaleWrapper = document.getElementById('lb-scale-wrapper');
     const lbImg = document.getElementById('lb-img');
     const lbTitle = document.getElementById('lb-title');
     const lbDesc = document.getElementById('lb-desc');
@@ -129,8 +132,6 @@ const {
     const dots = document.querySelectorAll('.lb-dot');
     
     let currentIndex = 0;
-    let lastSourceRect = null; // 存储上一次的 sourceRect，用于关闭动画
-    const duration = animationDuration || 300;
 
     // 更新视图
     function updateView(index) {
@@ -174,6 +175,7 @@ const {
       ];
       
       preloadIndices.forEach(i => {
+        // @ts-ignore - items 来自 define:vars
         const url = items[i]?.src;
         if (url) {
           const img = new Image();
@@ -183,10 +185,9 @@ const {
     }
 
     // 打开灯箱
-    window.openLightbox = function(index, sourceRect) {
+    window.openLightbox = function(index, _sourceRect) {
       if (index < 0 || index >= items.length) return;
       
-      lastSourceRect = sourceRect;
       updateView(index);
       
       lightbox?.classList.remove('hidden');
@@ -196,9 +197,8 @@ const {
     // 监听来自其他组件的自定义事件（如 daily.astro 的 onclick）
     window.addEventListener('open-lightbox', (e) => {
       const index = e.detail?.index;
-      const sourceRect = e.detail?.sourceRect;
       if (typeof index === 'number') {
-        window.openLightbox(index, sourceRect);
+        window.openLightbox(index);
       }
     });
 
@@ -209,7 +209,6 @@ const {
       lightbox?.classList.remove('flex');
       lightbox?.classList.add('hidden');
       if (lbImg) lbImg.src = '';
-      lastSourceRect = null;
     }
 
     // 切换上一张

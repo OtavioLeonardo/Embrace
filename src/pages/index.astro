@@ -1,87 +1,97 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
-import Navigation from "../components/Navigation.astro";
-import Footer from "../components/Footer.astro";
 import fs from "node:fs/promises";
 import path from "node:path";
+import Footer from "../components/Footer.astro";
+import Navigation from "../components/Navigation.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
 
-const allImages = import.meta.glob("../images/*/*.{jpg,jpeg,png,webp}", { eager: true });
+const allImages = import.meta.glob("../images/*/*.{jpg,jpeg,png,webp}", {
+  eager: true,
+});
 
-type CollectionGroup = { count: number; cover: string; images: string[]; external: string; internal: string };
+type CollectionGroup = {
+  count: number;
+  cover: string;
+  images: string[];
+  external: string;
+  internal: string;
+};
 const collectionGroups: Record<string, CollectionGroup> = {};
 
 // 扫描 images 目录下的所有子文件夹
-const imageDir = path.join(process.cwd(), 'src/images');
+const imageDir = path.join(process.cwd(), "src/images");
 let folders: string[] = [];
 try {
-    const entries = await fs.readdir(imageDir, { withFileTypes: true });
-    folders = entries
-        .filter(entry => entry.isDirectory())
-        .map(entry => entry.name);
+  const entries = await fs.readdir(imageDir, { withFileTypes: true });
+  folders = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
 } catch (e) {}
 
 // 读取每个文件夹的 intro.md
 type FolderMeta = { external: string; internal: string };
 const folderMeta: Record<string, FolderMeta> = {};
 for (const folder of folders) {
-    const introPath = path.join(imageDir, folder, 'intro.md');
-    try {
-        const content = await fs.readFile(introPath, 'utf-8');
-        
-        // 用 --- 分隔外部和内部内容
-        const parts = content.split(/^---$/m);
-        
-        let external = '';
-        let internal = '';
-        
-        if (parts.length >= 2) {
-            // 有分隔符：前部分是外部，后部分是内部
-            external = parts[0].trim();
-            internal = parts.slice(1).join(' ').trim();
-        } else {
-            // 没有分隔符：全部作为内部内容
-            internal = content.trim();
-        }
-        
-        // 过滤掉 markdown 标题，取有意义的内容
-        const filterContent = (text: string) => {
-            const lines = text.split('\n').filter(l => l.trim());
-            const meaningfulLines = lines.filter(l => !l.match(/^#{1,6}\s/) && l.trim().length > 0);
-            return meaningfulLines.slice(0, 3).join(' ').slice(0, 200);
-        };
-        
-        folderMeta[folder] = {
-            external: filterContent(external),
-            internal: filterContent(internal)
-        };
-    } catch (e) {
-        // 没有 intro.md，使用默认
+  const introPath = path.join(imageDir, folder, "intro.md");
+  try {
+    const content = await fs.readFile(introPath, "utf-8");
+
+    // 用 --- 分隔外部和内部内容
+    const parts = content.split(/^---$/m);
+
+    let external = "";
+    let internal = "";
+
+    if (parts.length >= 2) {
+      // 有分隔符：前部分是外部，后部分是内部
+      external = parts[0].trim();
+      internal = parts.slice(1).join(" ").trim();
+    } else {
+      // 没有分隔符：全部作为内部内容
+      internal = content.trim();
     }
+
+    // 过滤掉 markdown 标题，取有意义的内容
+    const filterContent = (text: string) => {
+      const lines = text.split("\n").filter((l) => l.trim());
+      const meaningfulLines = lines.filter(
+        (l) => !l.match(/^#{1,6}\s/) && l.trim().length > 0,
+      );
+      return meaningfulLines.slice(0, 3).join(" ").slice(0, 200);
+    };
+
+    folderMeta[folder] = {
+      external: filterContent(external),
+      internal: filterContent(internal),
+    };
+  } catch (e) {
+    // 没有 intro.md，使用默认
+  }
 }
 
 Object.entries(allImages).forEach(([filePath, mod]) => {
-    const imgData = (mod as any).default;
-    const parts = filePath.split('/');
-    const folderName = parts[parts.length - 2]; 
+  const imgData = (mod as any).default;
+  const parts = filePath.split("/");
+  const folderName = parts[parts.length - 2];
 
-    if (folderName === 'images') return; 
+  if (folderName === "images") return;
 
-    if (!collectionGroups[folderName]) {
-        const meta = folderMeta[folderName] || { external: '', internal: '' };
-        collectionGroups[folderName] = { 
-            count: 0, 
-            cover: imgData.src, 
-            images: [],
-            external: meta.external,
-            internal: meta.internal
-        };
-    }
-    collectionGroups[folderName].count++;
-    collectionGroups[folderName].images.push(imgData.src);
+  if (!collectionGroups[folderName]) {
+    const meta = folderMeta[folderName] || { external: "", internal: "" };
+    collectionGroups[folderName] = {
+      count: 0,
+      cover: imgData.src,
+      images: [],
+      external: meta.external,
+      internal: meta.internal,
+    };
+  }
+  collectionGroups[folderName].count++;
+  collectionGroups[folderName].images.push(imgData.src);
 });
 
 const sortedCollections = Object.keys(collectionGroups).sort();
-const currentPath: string = '';
+const currentPath: string = "";
 ---
 
 <BaseLayout title="影集画廊" description="精选摄影集">

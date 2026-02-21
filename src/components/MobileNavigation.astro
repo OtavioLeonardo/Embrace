@@ -15,10 +15,12 @@ const navLinks = [
 ];
 
 // 更新链接的 active 状态
-const activeLinks = navLinks.map(link => ({
+const activeLinks = navLinks.map((link) => ({
   ...link,
-  isActive: currentPath === link.href.replace(/^\/m/, "/") || 
-    (currentPath.startsWith(link.href.replace(/^\/m/, "/")) && link.href !== "/m/")
+  isActive:
+    currentPath === link.href.replace(/^\/m/, "/") ||
+    (currentPath.startsWith(link.href.replace(/^\/m/, "/")) &&
+      link.href !== "/m/"),
 }));
 ---
 

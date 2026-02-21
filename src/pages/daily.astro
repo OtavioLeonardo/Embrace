@@ -1,69 +1,97 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
-import Navigation from "../components/Navigation.astro";
+import { getImage } from "astro:assets";
+import fs from "node:fs/promises";
+import path from "node:path";
+import exifr from "exifr";
 import Footer from "../components/Footer.astro";
 import Lightbox from "../components/Lightbox.astro";
-import path from "node:path";
-import fs from "node:fs/promises";
-import exifr from "exifr";
-import { getImage } from "astro:assets";
-import { extractImageMetadata, toClientData } from "../utils/metadata";
+import Navigation from "../components/Navigation.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
 
 // --- 1. 乱码修复函数 ---
 function fixEncoding(str: string): string {
   if (!str) return "";
-  const isAscii = /^[\x00-\x7F]*$/.test(str);
+  const isAscii = /^[\u0000-\u007F]*$/.test(str);
   if (isAscii) return str;
   try {
-    const fixed = Buffer.from(str, 'binary').toString('utf8');
-    if (fixed.includes('')) return str;
+    const fixed = Buffer.from(str, "binary").toString("utf8");
+    if (fixed.includes("")) return str;
     // 处理换行符：将 \r\n, \n, \r 替换为空格，避免在 HTML 中显示为 &#xA;
-    return fixed.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-  } catch (e) { return str; }
+    return fixed
+      .replace(/[\r\n]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch (e) {
+    return str;
+  }
 }
 
 // --- 2. 数据获取 (扫描所有子文件夹) ---
-const allImages = import.meta.glob("../images/*.{jpg,jpeg,png,webp}", { eager: true });
+const allImages = import.meta.glob("../images/*.{jpg,jpeg,png,webp}", {
+  eager: true,
+});
 
 const galleryItems = await Promise.all(
   Object.entries(allImages).map(async ([filePath, mod]) => {
     const imgData = (mod as any).default;
-    const fileName = filePath.split('/').pop() || "Untitled";
-    
+    const fileName = filePath.split("/").pop() || "Untitled";
+
     // 初始化元数据
     let meta = {
       title: decodeURIComponent(fileName).replace(/\.[^/.]+$/, ""),
       desc: "",
       year: "2026",
       exif: "",
-      specs: { camera: "--", lens: "--", iso: "--", aperture: "--", shutter: "--" }
+      specs: {
+        camera: "--",
+        lens: "--",
+        iso: "--",
+        aperture: "--",
+        shutter: "--",
+      },
     };
 
     // --- 3. 读取 EXIF/IPTC ---
     try {
-        const relPath = filePath.replace('../', 'src/');
-        const realPath = path.join(process.cwd(), relPath);
-        
-        const buffer = await fs.readFile(realPath);
-        const data = await exifr.parse(buffer, { exif: true, tiff: true, iptc: true, xmp: true });
-        
-        if (data) {
-             if (data.DateTimeOriginal) meta.year = new Date(data.DateTimeOriginal).getFullYear().toString();
-             if (data.title && data.title.value) meta.title = data.title.value;
-             else if (data.ObjectName) meta.title = fixEncoding(data.ObjectName);
+      const relPath = filePath.replace("../", "src/");
+      const realPath = path.join(process.cwd(), relPath);
 
-             if (data.description && data.description.value) meta.desc = fixEncoding(data.description.value);
-             else if (data.Caption) meta.desc = fixEncoding(data.Caption);
-             else if (data.ImageDescription) meta.desc = fixEncoding(data.ImageDescription);
+      const buffer = await fs.readFile(realPath);
+      const data = await exifr.parse(buffer, {
+        exif: true,
+        tiff: true,
+        iptc: true,
+        xmp: true,
+      });
 
-             if (data.Model) meta.specs.camera = data.Model.replace("ILCE-", "Sony ").replace("NIKON", "Nikon ");
-             if (data.FNumber) meta.specs.aperture = `f/${data.FNumber}`;
-             if (data.ISO) meta.specs.iso = `ISO ${data.ISO}`;
-             if (data.ExposureTime) meta.specs.shutter = data.ExposureTime >= 1 ? `${data.ExposureTime}s` : `1/${Math.round(1/data.ExposureTime)}s`;
-             
-             meta.exif = `${meta.specs.camera} · ${meta.specs.aperture}`;
-        }
-    } catch (e) { }
+      if (data) {
+        if (data.DateTimeOriginal)
+          meta.year = new Date(data.DateTimeOriginal).getFullYear().toString();
+        if (data.title?.value) meta.title = data.title.value;
+        else if (data.ObjectName) meta.title = fixEncoding(data.ObjectName);
+
+        if (data.description?.value)
+          meta.desc = fixEncoding(data.description.value);
+        else if (data.Caption) meta.desc = fixEncoding(data.Caption);
+        else if (data.ImageDescription)
+          meta.desc = fixEncoding(data.ImageDescription);
+
+        if (data.Model)
+          meta.specs.camera = data.Model.replace("ILCE-", "Sony ").replace(
+            "NIKON",
+            "Nikon ",
+          );
+        if (data.FNumber) meta.specs.aperture = `f/${data.FNumber}`;
+        if (data.ISO) meta.specs.iso = `ISO ${data.ISO}`;
+        if (data.ExposureTime)
+          meta.specs.shutter =
+            data.ExposureTime >= 1
+              ? `${data.ExposureTime}s`
+              : `1/${Math.round(1 / data.ExposureTime)}s`;
+
+        meta.exif = `${meta.specs.camera} · ${meta.specs.aperture}`;
+      }
+    } catch (e) {}
 
     // --- 4. 生成缩略图 ---
     const thumbnail = await getImage({
@@ -75,26 +103,26 @@ const galleryItems = await Promise.all(
     return {
       imageData: imgData, // 保留原名，对应你代码里的 item.imageData
       thumbnail: thumbnail,
-      ...meta
+      ...meta,
     };
-  })
+  }),
 );
 
 // 按时间倒序排列
-galleryItems.sort((a, b) => parseInt(b.year) - parseInt(a.year));
+galleryItems.sort((a, b) => parseInt(b.year, 10) - parseInt(a.year, 10));
 
 // 构建客户端数据（添加 thumbnail 字段用于 Lightbox）
-const clientSideData = galleryItems.map(item => ({
+const clientSideData = galleryItems.map((item) => ({
   src: item.imageData.src,
   title: item.title,
   year: item.year,
   location: "",
   desc: item.desc,
   specs: item.specs,
-  thumbnail: item.thumbnail
+  thumbnail: item.thumbnail,
 }));
 
-const currentPath: string = 'daily';
+const currentPath: string = "daily";
 ---
 
 <BaseLayout title="日常 moments" description="日常即景，未成册的吉光片羽">
@@ -208,7 +236,7 @@ const currentPath: string = 'daily';
       
       // 绑定点击事件到每个卡片
       document.querySelectorAll('[data-index]').forEach(el => {
-          el.addEventListener('click', (e) => {
+          el.addEventListener('click', () => {
               const index = parseInt(el.dataset.index, 10);
               if (index >= 0 && index < items.length) {
                   // 触发 Lightbox 组件的 open-lightbox 事件

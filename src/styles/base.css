@@ -1,21 +1,21 @@
 /* 引入 Google Fonts: Noto Serif SC (思源宋体) */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400;500;600;700;900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400;500;600;700;900&display=swap");
 /* 引入 Inter 作为英文数字的辅助搭配 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap");
 
 :root {
   color-scheme: light dark;
 
   /* --- 核心配色：纸墨红 --- */
-  --ink-black: #1a1a1a;       /* 墨色：不是纯黑，带一点点暖灰 */
-  --paper-white: #fdfbf7;     /* 宣纸白：带一点点米色，护眼且有质感 */
-  --seal-red: #b93a3a;        /* 印泥红：深沉的中国红，用于强调 */
-  --grid-line: #e5e5e5;       /* 辅助线：极淡 */
+  --ink-black: #1a1a1a; /* 墨色：不是纯黑，带一点点暖灰 */
+  --paper-white: #fdfbf7; /* 宣纸白：带一点点米色，护眼且有质感 */
+  --seal-red: #b93a3a; /* 印泥红：深沉的中国红，用于强调 */
+  --grid-line: #e5e5e5; /* 辅助线：极淡 */
 
   /* --- 映射到通用变量 --- */
   --bg: var(--paper-white);
-  --bg-dark: #111111;         /* 暗黑模式底色 */
-  
+  --bg-dark: #111111; /* 暗黑模式底色 */
+
   --text-main: var(--ink-black);
   --text-main-dark: #e5e5e5;
 

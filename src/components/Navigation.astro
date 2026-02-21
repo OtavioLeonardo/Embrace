@@ -24,8 +24,10 @@ const {
 // 更新链接的 active 状态
 const navLinks = links.map((link) => ({
   ...link,
-  isActive: link.isActive || (currentPath === link.href.replace(/^\//, "") || 
-    (currentPath.startsWith(link.href.replace(/^\//, "")) && link.href !== "/")),
+  isActive:
+    link.isActive ||
+    currentPath === link.href.replace(/^\//, "") ||
+    (currentPath.startsWith(link.href.replace(/^\//, "")) && link.href !== "/"),
 }));
 ---
 

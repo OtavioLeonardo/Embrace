@@ -1,6 +1,6 @@
-import exifr from "exifr";
 import fs from "node:fs/promises";
 import path from "node:path";
+import exifr from "exifr";
 
 /**
  * 图片元数据类型定义
@@ -47,16 +47,17 @@ function fixEncoding(str: unknown): string {
   if (typeof str !== "string") return String(str);
 
   // 如果是纯 ASCII，直接返回
-  const isAscii = /^[\x00-\x7F]*$/.test(str);
+  const isAscii = /^[\u0000-\u007F]*$/.test(str);
   if (isAscii) return str;
 
   // 检查是否已经是有效的 UTF-8 字符串
   // 如果字符串中的字符都是有效的 Unicode 范围，说明它已经是正确的 UTF-8
   // 不需要再做 binary -> utf8 的转换
-  const hasValidUnicode = /[\u4e00-\u9fa5]/.test(str) ||  // 中文
-                          /[\u3040-\u309f]/.test(str) ||  // 日文 hiragana
-                          /[\u30a0-\u30ff]/.test(str) ||  // 日文 katakana
-                          /[\uac00-\ud7af]/.test(str);    // 韩文
+  const hasValidUnicode =
+    /[\u4e00-\u9fa5]/.test(str) || // 中文
+    /[\u3040-\u309f]/.test(str) || // 日文 hiragana
+    /[\u30a0-\u30ff]/.test(str) || // 日文 katakana
+    /[\uac00-\ud7af]/.test(str); // 韩文
   if (hasValidUnicode) {
     return str;
   }
@@ -65,7 +66,7 @@ function fixEncoding(str: unknown): string {
     // 尝试用 binary 编码转换为 UTF-8
     const fixed = Buffer.from(str, "binary").toString("utf8");
     // 检查转换后是否包含有效的非 ASCII 字符
-    if (fixed && /[^\x00-\x7F]/.test(fixed)) {
+    if (fixed && /[^\u0000-\u007F]/.test(fixed)) {
       return fixed;
     }
     return str;
@@ -97,13 +98,16 @@ function parseExifString(value: unknown, isFromXmp = false): string {
       }
     }
     // XMP 格式 { 'x-default': '...' }
-    else if ("x-default" in value) result = parseExifString((value as Record<string, unknown>)["x-default"], true);
+    else if ("x-default" in value)
+      result = parseExifString(
+        (value as Record<string, unknown>)["x-default"],
+        true,
+      );
     else if ("lang" in value) {
       const obj = value as Record<string, unknown>;
       if (obj["x-default"]) result = parseExifString(obj["x-default"], true);
-      else if (obj["en"]) result = parseExifString(obj["en"], true);
-    }
-    else {
+      else if (obj.en) result = parseExifString(obj.en, true);
+    } else {
       // 其他对象类型直接返回空字符串，避免 [object Object]
       return "";
     }
@@ -121,9 +125,7 @@ function parseExifString(value: unknown, isFromXmp = false): string {
           result = decoded.trim();
           break;
         }
-      } catch {
-        continue;
-      }
+      } catch {}
     }
     // 回退到 binary
     if (!result) result = fixEncoding(value.toString("binary"));
@@ -135,7 +137,7 @@ function parseExifString(value: unknown, isFromXmp = false): string {
   // 保留换行符，将换行符替换为 <br> 标签以便在 HTML 中正确显示
   // 去除首尾空白，但保留中间的换行符，然后替换为 <br>
   // 注意：Astro 会把 \n 转义为 &#xA;，所以直接替换 &#xA;
-  result = result.replace(/&#xA;/g, '<br>').trim();
+  result = result.replace(/&#xA;/g, "<br>").trim();
 
   return result;
 }
@@ -165,7 +167,7 @@ async function readExifChunk(filePath: string): Promise<Buffer | null> {
 export async function extractImageMetadata(
   collection: string,
   fileName: string,
-  defaultSrc: string
+  defaultSrc: string,
 ): Promise<ImageMetadata> {
   // 默认值
   const meta: ImageMetadata = {
@@ -184,7 +186,12 @@ export async function extractImageMetadata(
   };
 
   try {
-    const realPath = path.join(process.cwd(), "src/images", collection, fileName);
+    const realPath = path.join(
+      process.cwd(),
+      "src/images",
+      collection,
+      fileName,
+    );
 
     // 优化：只读取文件头部来解析 EXIF，极大提升性能
     const buffer = await readExifChunk(realPath);
@@ -205,7 +212,7 @@ export async function extractImageMetadata(
     // 解析日期
     if (data.DateTimeOriginal) {
       const date = new Date(data.DateTimeOriginal);
-      if (!isNaN(date.getTime())) {
+      if (!Number.isNaN(date.getTime())) {
         meta.year = date.getFullYear().toString();
       }
     }
@@ -224,8 +231,10 @@ export async function extractImageMetadata(
 
     if (data.photoshop) {
       if (data.photoshop.City) city = parseExifString(data.photoshop.City);
-      if (data.photoshop.Country) country = parseExifString(data.photoshop.Country);
-      if (data.photoshop.Sublocation) sublocation = parseExifString(data.photoshop.Sublocation);
+      if (data.photoshop.Country)
+        country = parseExifString(data.photoshop.Country);
+      if (data.photoshop.Sublocation)
+        sublocation = parseExifString(data.photoshop.Sublocation);
       if (data.photoshop.ProvinceState) {
         const province = parseExifString(data.photoshop.ProvinceState);
         if (province && !city) city = province;
@@ -233,8 +242,10 @@ export async function extractImageMetadata(
     }
     if (!city && data.City) city = parseExifString(data.City);
     if (!country && data.Country) country = parseExifString(data.Country);
-    if (!sublocation && data.Sublocation) sublocation = parseExifString(data.Sublocation);
-    if (!sublocation && data.SubLocation) sublocation = parseExifString(data.SubLocation);
+    if (!sublocation && data.Sublocation)
+      sublocation = parseExifString(data.Sublocation);
+    if (!sublocation && data.SubLocation)
+      sublocation = parseExifString(data.SubLocation);
 
     const parts: string[] = [];
     if (sublocation) parts.push(sublocation);

@@ -10,7 +10,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -20,7 +21,9 @@ html, body {
 }
 
 .mobile-body {
-  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
   background-color: #000;
   color: #fff;
   min-height: 100vh;
@@ -169,7 +172,8 @@ img {
 
 /* 脉冲 */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -209,11 +213,21 @@ img {
 }
 
 /* 动画延迟 */
-.delay-100 { animation-delay: 0.1s; }
-.delay-200 { animation-delay: 0.2s; }
-.delay-300 { animation-delay: 0.3s; }
-.delay-400 { animation-delay: 0.4s; }
-.delay-500 { animation-delay: 0.5s; }
+.delay-100 {
+  animation-delay: 0.1s;
+}
+.delay-200 {
+  animation-delay: 0.2s;
+}
+.delay-300 {
+  animation-delay: 0.3s;
+}
+.delay-400 {
+  animation-delay: 0.4s;
+}
+.delay-500 {
+  animation-delay: 0.5s;
+}
 
 /* ========== 骨架屏 ========== */
 .skeleton {
@@ -292,16 +306,36 @@ img {
   animation: slideUpFadeIn 0.5s ease forwards;
 }
 
-.list-item:nth-child(1) { animation-delay: 0.05s; }
-.list-item:nth-child(2) { animation-delay: 0.1s; }
-.list-item:nth-child(3) { animation-delay: 0.15s; }
-.list-item:nth-child(4) { animation-delay: 0.2s; }
-.list-item:nth-child(5) { animation-delay: 0.25s; }
-.list-item:nth-child(6) { animation-delay: 0.3s; }
-.list-item:nth-child(7) { animation-delay: 0.35s; }
-.list-item:nth-child(8) { animation-delay: 0.4s; }
-.list-item:nth-child(9) { animation-delay: 0.45s; }
-.list-item:nth-child(10) { animation-delay: 0.5s; }
+.list-item:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.list-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.list-item:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.list-item:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.list-item:nth-child(5) {
+  animation-delay: 0.25s;
+}
+.list-item:nth-child(6) {
+  animation-delay: 0.3s;
+}
+.list-item:nth-child(7) {
+  animation-delay: 0.35s;
+}
+.list-item:nth-child(8) {
+  animation-delay: 0.4s;
+}
+.list-item:nth-child(9) {
+  animation-delay: 0.45s;
+}
+.list-item:nth-child(10) {
+  animation-delay: 0.5s;
+}
 
 /* ========== 手势提示 ========== */
 .swipe-hint {
@@ -309,7 +343,7 @@ img {
 }
 
 .swipe-hint::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 20px;
   left: 50%;
@@ -322,7 +356,8 @@ img {
 }
 
 @keyframes swipeHint {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.3;
     transform: translateX(-50%) scaleX(0.5);
   }

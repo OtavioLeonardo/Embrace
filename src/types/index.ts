@@ -92,7 +92,7 @@ export interface LightboxOptions {
  * 构建选项
  */
 export interface BuildOptions {
-  format?: 'webp' | 'avif' | 'jpeg' | 'png';
+  format?: "webp" | "avif" | "jpeg" | "png";
   quality?: number;
   width?: number;
   height?: number;
@@ -108,7 +108,7 @@ export interface ResponsiveImage {
   alt: string;
   width?: number;
   height?: number;
-  loading?: 'lazy' | 'eager';
+  loading?: "lazy" | "eager";
   class?: string;
 }
 
@@ -119,7 +119,7 @@ export interface AnimationConfig {
   duration?: number;
   delay?: number;
   easing?: string;
-  fill?: 'forwards' | 'backwards' | 'both';
+  fill?: "forwards" | "backwards" | "both";
 }
 
 /**
@@ -134,8 +134,8 @@ export interface ApiResponse<T> {
 /**
  * 排序选项
  */
-export type SortField = 'year' | 'title' | 'camera' | 'date';
-export type SortOrder = 'asc' | 'desc';
+export type SortField = "year" | "title" | "camera" | "date";
+export type SortOrder = "asc" | "desc";
 
 export interface SortOption {
   field: SortField;

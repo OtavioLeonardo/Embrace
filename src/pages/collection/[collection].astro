@@ -1,10 +1,9 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import Navigation from "../../components/Navigation.astro";
-import path from "node:path";
-import fs from "node:fs/promises";
-import { marked } from "marked";
 import { getImage } from "astro:assets";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { marked } from "marked";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { extractImageMetadata, toClientData } from "../../utils/metadata";
 
 // Astro 图像对象类型（从 import.meta.glob 返回）
@@ -23,7 +22,10 @@ export async function getStaticPaths() {
     eager: true,
   });
 
-  const imagesByFolder: Record<string, { filePath: string; imgData: AstroImage }[]> = {};
+  const imagesByFolder: Record<
+    string,
+    { filePath: string; imgData: AstroImage }[]
+  > = {};
 
   Object.entries(allImages).forEach(([filePath, imgModule]) => {
     const parts = filePath.split("/");
@@ -33,7 +35,7 @@ export async function getStaticPaths() {
     // imgModule.default 是 Astro 的 ImageMetadata 对象
     imagesByFolder[folderName].push({
       filePath,
-      imgData: (imgModule as { default: AstroImage }).default
+      imgData: (imgModule as { default: AstroImage }).default,
     });
   });
 
@@ -56,21 +58,26 @@ const subTitle = nameParts[1] || "";
 let introHtml = "";
 let hasIntro = false;
 try {
-  const introPath = path.join(process.cwd(), "src/images", collection, "intro.md");
+  const introPath = path.join(
+    process.cwd(),
+    "src/images",
+    collection,
+    "intro.md",
+  );
   const introMarkdown = await fs.readFile(introPath, "utf-8");
-  
+
   // 用 --- 分隔外部和内部内容
   const parts = introMarkdown.split(/^---$/m);
-  
-  let internalContent = '';
+
+  let internalContent = "";
   if (parts.length >= 2) {
     // 有分隔符：只取 --- 之后的内容作为内部展示
-    internalContent = parts.slice(1).join(' ').trim();
+    internalContent = parts.slice(1).join(" ").trim();
   } else {
     // 没有分隔符：全部作为内部内容
     internalContent = introMarkdown.trim();
   }
-  
+
   if (internalContent) {
     introHtml = await marked.parse(internalContent);
     hasIntro = true;
@@ -81,36 +88,55 @@ try {
 
 // 4. 处理图片 - 使用 Astro Assets 进行优化
 const galleryItems = await Promise.all(
-  images.map(async ({ filePath, imgData }: { filePath: string; imgData: AstroImage }) => {
-    const fileName = filePath.split("/").pop() || "无标题";
+  images.map(
+    async ({
+      filePath,
+      imgData,
+    }: {
+      filePath: string;
+      imgData: AstroImage;
+    }) => {
+      const fileName = filePath.split("/").pop() || "无标题";
 
-    // 使用 getImage 生成优化版本的 WebP
-    let optimizedSrc = imgData.src;
-    try {
-      const optimized = await getImage({
-        // @ts-expect-error - Astro's getImage accepts imported image modules
-        src: imgData,
-        width: 1600,
-        format: "webp",
-        quality: 85,
-      });
-      optimizedSrc = optimized.src;
-    } catch (e) {
-      // 如果优化失败，使用原始路径
-      console.warn(`Failed to optimize image: ${fileName}`, e);
-    }
+      // 使用 getImage 生成优化版本的 WebP
+      let optimizedSrc = imgData.src;
+      try {
+        const optimized = await getImage({
+          // @ts-expect-error - Astro's getImage accepts imported image modules
+          src: imgData,
+          width: 1600,
+          format: "webp",
+          quality: 85,
+        });
+        optimizedSrc = optimized.src;
+      } catch (e) {
+        // 如果优化失败，使用原始路径
+        console.warn(`Failed to optimize image: ${fileName}`, e);
+      }
 
-    // 使用工具函数提取 EXIF 数据
-    const meta = await extractImageMetadata(collection, fileName, optimizedSrc);
+      // 使用工具函数提取 EXIF 数据
+      const meta = await extractImageMetadata(
+        collection,
+        fileName,
+        optimizedSrc,
+      );
 
-    return meta;
-  })
+      return meta;
+    },
+  ),
 );
 
 const hasImages = galleryItems.length > 0;
 const initialItem = hasImages
   ? galleryItems[0]
-  : { src: "", title: "暂无图片", year: "", location: "", specs: { camera: "", lens: "", aperture: "", shutter: "", iso: "" }, desc: "" };
+  : {
+      src: "",
+      title: "暂无图片",
+      year: "",
+      location: "",
+      specs: { camera: "", lens: "", aperture: "", shutter: "", iso: "" },
+      desc: "",
+    };
 
 // 5. 精简客户端数据 - 只传输前端需要的字段
 const clientSideData = toClientData(galleryItems);
@@ -359,7 +385,7 @@ const clientSideData = toClientData(galleryItems);
           imageStatus: document.getElementById('image-status'),
       };
 
-      const { mainImage, titleEl, metaEl, dots, overlay, overlayImg, overlayTitle, overlayDesc, overlayYear, overlayLocation, overlayLocationText, specCamera, specLens, specFocal, specShutter, specIso, specAperture, overlayTitleMobile, overlayYearMobile, overlayLocationMobile, overlayLocationTextMobile, specCameraMobile, specApertureMobile, specShutterMobile, specIsoMobile, overlayDescMobile, prevBtn, nextBtn, infoTrigger, imageStatus } = dom;
+      const { mainImage, titleEl, metaEl, dots, overlay, overlayImg, overlayTitle, overlayDesc, overlayLocation, overlayLocationText, specCamera, specLens, specFocal, specShutter, specIso, specAperture, overlayTitleMobile, overlayYearMobile, overlayLocationMobile, overlayLocationTextMobile, specCameraMobile, specApertureMobile, specShutterMobile, specIsoMobile, overlayDescMobile, prevBtn, nextBtn, infoTrigger, imageStatus } = dom;
 
       const preloadImage = (src) => { const img = new Image(); img.src = src; };
 
