@@ -1,0 +1,119 @@
+/* src/styles/global.css */
+
+/* ✅ 1. Tailwind v4 核心引入 */
+@import "tailwindcss";
+
+@layer utilities {
+  /* 修复图标显示 */
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'liga';
+  }
+
+  /* ✅ 新增：竖排文字工具类 (核心画册感来源) */
+  .writing-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.15em; /* 竖排文字字间距要稍微大一点 */
+  }
+
+  /* ✅ 新增：纸张纹理 (给背景增加噪点) */
+  .bg-texture {
+    background-color: var(--bg);
+    /* SVG 噪点滤镜 */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  }
+  
+  /* 暗黑模式下去除纹理，保持纯净 */
+  .dark .bg-texture {
+    background-image: none;
+  }
+}
+
+/* 隐藏滚动条但保留功能 (可选，为了极简视觉) */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* 页面转场动画 - 保持你之前的设置，或者稍微调慢一点增加优雅感 */
+@keyframes fall-exit {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+    filter: brightness(0.9);
+  }
+}
+
+@keyframes fall-enter {
+  from {
+    transform: translateY(100%);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+::view-transition-old(root) {
+  animation: 1s cubic-bezier(0.7, 0, 0.3, 1) both fall-exit;
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  animation: 1s cubic-bezier(0.7, 0, 0.3, 1) both fall-enter;
+  z-index: 2;
+}
+
+/* Markdown 排版样式优化 - 更像书 */
+.prose-custom p {
+    text-indent: 2em;
+    margin-bottom: 2em; /* 段落间距加大 */
+    line-height: 2;     /* 行高加大，呼吸感 */
+    text-align: justify;
+}
+
+/* 亮色模式 */
+.prose-custom p {
+    color: #1a1a1a;
+    opacity: 0.9;
+}
+
+/* 暗黑模式 - 使用 prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+    .prose-custom p {
+        color: #e5e5e5;
+    }
+}
+
+.prose-custom h1, .prose-custom h2 {
+    display: none;
+}
+
+/* 链接下划线动画效果 */
+a {
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+}

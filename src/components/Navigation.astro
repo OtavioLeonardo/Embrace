@@ -1,0 +1,68 @@
+---
+// src/components/Navigation.astro
+import type { NavLink } from "~/types";
+
+interface Props {
+  currentPath: string;
+  links?: NavLink[];
+  transparent?: boolean;
+  logoText?: string;
+  logoSubText?: string;
+}
+
+const {
+  currentPath = "",
+  links = [
+    { href: "/", label: "影集", isActive: false },
+    { href: "/daily", label: "日常", isActive: false },
+  ],
+  transparent = false,
+  logoText = "拥入怀中",
+  logoSubText = "Photography",
+} = Astro.props;
+
+// 更新链接的 active 状态
+const navLinks = links.map((link) => ({
+  ...link,
+  isActive: link.isActive || (currentPath === link.href.replace(/^\//, "") || 
+    (currentPath.startsWith(link.href.replace(/^\//, "")) && link.href !== "/")),
+}));
+---
+
+<nav
+  class:list={[
+    "fixed top-0 left-0 right-0 z-50 px-6 md:px-12 py-5 flex justify-between items-center",
+    transparent
+      ? "bg-transparent"
+      : "bg-white dark:bg-black border-b border-black dark:border-white",
+  ]}
+>
+  <a href="/" class="flex flex-col gap-0.5 group">
+    <span
+      class="font-serif text-lg text-black dark:text-white font-bold tracking-[0.2em]"
+    >
+      {logoText}
+    </span>
+    <span
+      class="text-[9px] uppercase tracking-[0.35em] text-gray-500 dark:text-gray-400"
+    >
+      {logoSubText}
+    </span>
+  </a>
+
+  <div class="flex gap-8 md:gap-10 text-[11px] font-serif tracking-[0.2em]">
+    {navLinks.map((link) => (
+      <a
+        href={link.href}
+        class:list={[
+          "relative",
+          link.isActive
+            ? "text-black dark:text-white underline decoration-1 underline-offset-4"
+            : "text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white",
+        ]}
+      >
+        {link.label}
+      </a>
+    ))}
+  </div>
+</nav>

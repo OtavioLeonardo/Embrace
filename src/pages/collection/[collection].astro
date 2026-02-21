@@ -1,0 +1,696 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Navigation from "../../components/Navigation.astro";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { marked } from "marked";
+import { getImage } from "astro:assets";
+import { extractImageMetadata, toClientData } from "../../utils/metadata";
+
+// Astro 图像对象类型（从 import.meta.glob 返回）
+interface AstroImage {
+  src: string;
+  width: number;
+  height: number;
+  format: string;
+}
+
+// 1. 生成静态路径 - 使用 eager 模式但配合 getImage 进行优化
+export async function getStaticPaths() {
+  // 使用 eager: true 获取图片模块（Vite 会自动处理）
+  // 注意：Vite/astro-assets 会缓存优化后的图片，不会导致 OOM
+  const allImages = import.meta.glob("../../images/*/*.{jpg,jpeg,png,webp}", {
+    eager: true,
+  });
+
+  const imagesByFolder: Record<string, { filePath: string; imgData: AstroImage }[]> = {};
+
+  Object.entries(allImages).forEach(([filePath, imgModule]) => {
+    const parts = filePath.split("/");
+    const folderName = parts[parts.length - 2];
+    if (folderName === "images") return;
+    if (!imagesByFolder[folderName]) imagesByFolder[folderName] = [];
+    // imgModule.default 是 Astro 的 ImageMetadata 对象
+    imagesByFolder[folderName].push({
+      filePath,
+      imgData: (imgModule as { default: AstroImage }).default
+    });
+  });
+
+  return Object.keys(imagesByFolder).map((collection) => ({
+    params: { collection },
+    props: { images: imagesByFolder[collection] },
+  }));
+}
+
+const { collection } = Astro.params;
+const { images } = Astro.props;
+
+// 2. 解析标题
+const rawName = collection.replace(/^\d+_/, "");
+const nameParts = rawName.split("_");
+const mainTitle = nameParts[0] || rawName;
+const subTitle = nameParts[1] || "";
+
+// 3. 读取前言（只读取 --- 分隔符之后的内容，作为内部展示）
+let introHtml = "";
+let hasIntro = false;
+try {
+  const introPath = path.join(process.cwd(), "src/images", collection, "intro.md");
+  const introMarkdown = await fs.readFile(introPath, "utf-8");
+  
+  // 用 --- 分隔外部和内部内容
+  const parts = introMarkdown.split(/^---$/m);
+  
+  let internalContent = '';
+  if (parts.length >= 2) {
+    // 有分隔符：只取 --- 之后的内容作为内部展示
+    internalContent = parts.slice(1).join(' ').trim();
+  } else {
+    // 没有分隔符：全部作为内部内容
+    internalContent = introMarkdown.trim();
+  }
+  
+  if (internalContent) {
+    introHtml = await marked.parse(internalContent);
+    hasIntro = true;
+  }
+} catch (e) {
+  // 没有前言文件是正常的，静默忽略
+}
+
+// 4. 处理图片 - 使用 Astro Assets 进行优化
+const galleryItems = await Promise.all(
+  images.map(async ({ filePath, imgData }: { filePath: string; imgData: AstroImage }) => {
+    const fileName = filePath.split("/").pop() || "无标题";
+
+    // 使用 getImage 生成优化版本的 WebP
+    let optimizedSrc = imgData.src;
+    try {
+      const optimized = await getImage({
+        // @ts-expect-error - Astro's getImage accepts imported image modules
+        src: imgData,
+        width: 1600,
+        format: "webp",
+        quality: 85,
+      });
+      optimizedSrc = optimized.src;
+    } catch (e) {
+      // 如果优化失败，使用原始路径
+      console.warn(`Failed to optimize image: ${fileName}`, e);
+    }
+
+    // 使用工具函数提取 EXIF 数据
+    const meta = await extractImageMetadata(collection, fileName, optimizedSrc);
+
+    return meta;
+  })
+);
+
+const hasImages = galleryItems.length > 0;
+const initialItem = hasImages
+  ? galleryItems[0]
+  : { src: "", title: "暂无图片", year: "", location: "", specs: { camera: "", lens: "", aperture: "", shutter: "", iso: "" }, desc: "" };
+
+// 5. 精简客户端数据 - 只传输前端需要的字段
+const clientSideData = toClientData(galleryItems);
+---
+
+<BaseLayout title={mainTitle} description={`${mainTitle} - ${subTitle}`}>
+  <div class="w-full h-screen bg-white dark:bg-black text-black dark:text-white overflow-hidden relative">
+
+    <!-- 导航栏 -->
+    <header class="absolute top-0 left-0 w-full z-40 flex items-center justify-between px-6 py-5">
+      <!-- 左侧：返回按钮 -->
+      <a href="/" class="group flex items-center gap-3 text-sm font-medium tracking-[0.3em] uppercase text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white">
+        <span>返回</span>
+      </a>
+
+      <!-- 中间：网站名称 -->
+      <a href="/" class="absolute left-1/2 -translate-x-1/2">
+        <span class="font-serif text-xl tracking-[0.15em] text-black dark:text-white hover:text-gray-600 dark:hover:text-gray-300">Embrace</span>
+      </a>
+
+      <!-- 右侧：空白占位，保持对称 -->
+      <div class="w-20"></div>
+    </header>
+
+    <main class="relative w-full h-full flex items-center justify-center p-0">
+        {hasImages ? (
+          <>
+            <button id="prev-btn" class="absolute left-0 top-0 h-full w-24 z-30 flex items-center justify-start pl-8 group outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white focus-visible:ring-inset" aria-label="上一张">
+                <span class="text-xs font-medium tracking-[0.3em] uppercase text-gray-500 dark:text-gray-400">上一张</span>
+            </button>
+
+            <div class="relative z-10 max-w-[85%] max-h-[70vh] pb-20 flex items-center justify-center pointer-events-none">
+                <div class="bg-white dark:bg-black p-2 sm:p-4 border border-gray-200 dark:border-gray-800 pointer-events-auto">
+                    <img id="main-image" alt={initialItem.title} src={initialItem.src} class="block w-auto h-auto max-h-[60vh] object-contain" loading="eager" />
+                    <!-- 屏幕阅读器专用：图片加载状态 -->
+                    <span id="image-status" class="sr-only" aria-live="polite" aria-atomic="true"></span>
+                </div>
+            </div>
+
+            <button id="next-btn" class="absolute right-0 top-0 h-full w-24 z-30 flex items-center justify-end pr-8 group outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white focus-visible:ring-inset" aria-label="下一张">
+                <span class="text-xs font-medium tracking-[0.3em] uppercase text-gray-500 dark:text-gray-400">下一张</span>
+            </button>
+
+            <div id="info-trigger" class="absolute bottom-20 right-8 z-20 text-black dark:text-white group" role="button" tabindex="0" aria-label="查看详情">
+                <div class="bg-white dark:bg-black px-6 py-4 border border-gray-200 dark:border-gray-800 text-right">
+                    <div class="flex items-center justify-end gap-2 mb-1">
+                        <h1 id="image-title" class="font-serif text-lg italic text-black dark:text-white leading-tight min-w-25">{initialItem.title}</h1>
+                        <span class="material-symbols-outlined text-gray-400 text-sm">info</span>
+                    </div>
+                    <p id="image-meta" class="font-sans text-xs text-gray-500 dark:text-gray-400 tracking-widest uppercase">{initialItem.year} · 详情</p>
+                </div>
+            </div>
+          </>
+        ) : (
+          <div class="text-center p-10 bg-white dark:bg-black border border-gray-200 dark:border-gray-800"><h2 class="text-xl text-red-500 mb-2">相册暂无图片</h2></div>
+        )}
+    </main>
+
+    {hasImages && (
+      <footer class="absolute bottom-0 left-0 w-full p-4 md:p-6 z-40 flex justify-center pointer-events-none">
+          <div id="progress-container" class="flex gap-1.5 md:gap-2 bg-gray-100 dark:bg-gray-900 p-1.5 md:p-2 pointer-events-auto overflow-x-auto w-full md:w-auto md:max-w-[80vw] hide-scrollbar" role="group" aria-label="Image navigation">
+              {galleryItems.map((item, index: number) => (
+              <button class={`dot-btn shrink-0 h-1 md:h-1.5 ${index === 0 ? 'w-6 md:w-8 bg-black dark:bg-white' : 'w-1 md:w-2 bg-gray-400/50'}`} data-index={index} aria-label={`Go to image ${index + 1}: ${item.title}`} aria-current={index === 0 ? 'true' : 'false'}></button>
+              ))}
+          </div>
+      </footer>
+    )}
+
+    {hasIntro && introHtml && (
+      <div id="intro-cover" class="fixed inset-0 z-60 bg-white dark:bg-black transition-transform duration-1000 cubic-bezier(0.7, 0, 0.3, 1) overflow-y-auto">
+          <div class="min-h-full flex items-center justify-center p-8 md:p-12">
+              <div class="max-w-2xl w-full relative">
+
+                  <div class="w-12 h-1 bg-gray-300 dark:bg-gray-700 mb-8"></div>
+
+                  <div class="mb-12">
+                      <h1 class="font-serif text-5xl md:text-6xl font-bold text-black dark:text-white mb-2 tracking-tight">{mainTitle}</h1>
+                      {subTitle && <p class="text-sm md:text-base text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em] font-medium">{subTitle}</p>}
+                  </div>
+
+                  <div class="prose-custom font-serif text-lg md:text-xl leading-loose text-justify mb-16" set:html={introHtml}>
+                  </div>
+
+                  <button id="start-btn" class="group flex items-center gap-3 text-sm font-bold uppercase tracking-[0.3em] text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white pb-8 focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white focus-visible:ring-offset-2" aria-label="开始浏览">
+                      <span>进入</span>
+                  </button>
+              </div>
+          </div>
+      </div>
+    )}
+
+    <div id="details-overlay" class="fixed inset-0 z-100 bg-white dark:bg-black w-full h-full overflow-hidden opacity-0 pointer-events-none" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+        <div class="absolute top-0 right-0 z-50 p-6 md:p-8 flex gap-4">
+            <button class="close-overlay-btn group flex items-center justify-center w-10 h-10 bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800" aria-label="关闭详情">
+                <span class="material-symbols-outlined text-black dark:text-white text-2xl" aria-hidden="true">close</span>
+            </button>
+        </div>
+        <div class="relative z-10 w-full h-full hidden md:flex">
+            <div class="w-2/3 h-full flex items-center justify-center p-8 lg:p-12">
+                <div class="relative border border-gray-200 dark:border-gray-800 select-none max-w-full max-h-full">
+                    <img id="overlay-img" alt="" class="w-auto h-auto max-h-[85vh] max-w-full object-contain bg-white dark:bg-black" src="" />
+                </div>
+            </div>
+            <div class="w-1/3 h-full flex items-center justify-center p-8 lg:p-12 border-l border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
+                <div class="w-full max-w-md space-y-8">
+                    <!-- 标题区域 -->
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 text-[11px] uppercase tracking-[0.25em] text-gray-400 dark:text-gray-500 font-medium">
+                            <span id="overlay-year">{initialItem.year}</span>
+                            <span class="text-gray-300 dark:text-gray-700">·</span>
+                            <span id="overlay-location" class="flex items-center gap-1 opacity-0">
+                                <span class="material-symbols-outlined text-[12px]">location_on</span>
+                                <span id="overlay-location-text">--</span>
+                            </span>
+                        </div>
+                        <h1 id="overlay-title" class="text-2xl font-serif font-medium text-black dark:text-white leading-tight wrap-break-words">无标题</h1>
+                    </div>
+
+                    <!-- 描述区域 -->
+                    <div class="pb-6 border-b border-gray-200 dark:border-gray-800">
+                        <p id="overlay-desc" class="text-sm leading-relaxed text-gray-600 dark:text-gray-400 font-normal tracking-wide">暂无描述</p>
+                    </div>
+
+                    <!-- 技术参数 - 两列布局，更丰富的信息 -->
+                    <div class="grid grid-cols-2 gap-x-8 gap-y-6">
+                        <!-- 相机 -->
+                        <div class="space-y-2">
+                            <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">相机</p>
+                            <p id="spec-camera" class="text-sm text-gray-700 dark:text-gray-300 font-medium">--</p>
+                        </div>
+                        <!-- 镜头 -->
+                        <div class="space-y-2">
+                            <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">镜头</p>
+                            <p id="spec-lens" class="text-sm text-gray-700 dark:text-gray-300 font-medium">--</p>
+                        </div>
+                        <!-- 光圈 -->
+                        <div class="space-y-2">
+                            <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">光圈</p>
+                            <p id="spec-aperture" class="text-sm text-gray-700 dark:text-gray-300 font-medium">--</p>
+                        </div>
+                        <!-- 快门 -->
+                        <div class="space-y-2">
+                            <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">快门</p>
+                            <p id="spec-shutter" class="text-sm text-gray-700 dark:text-gray-300 font-medium">--</p>
+                        </div>
+                        <!-- ISO -->
+                        <div class="space-y-2">
+                            <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">ISO</p>
+                            <p id="spec-iso" class="text-sm text-gray-700 dark:text-gray-300 font-medium">--</p>
+                        </div>
+                        <!-- 焦距 -->
+                        <div class="space-y-2">
+                            <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">焦距</p>
+                            <p id="spec-focal" class="text-sm text-gray-700 dark:text-gray-300 font-medium">--</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="absolute bottom-0 left-0 w-full bg-white dark:bg-black p-4 md:p-5 z-30 border-t border-gray-200 dark:border-gray-800 md:hidden">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex-1 min-w-0 pr-3">
+                    <div class="flex items-center gap-2 text-[9px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
+                        <span id="overlay-year-mobile">{initialItem.year}</span>
+                        <span id="overlay-location-mobile" class="hidden items-center gap-0.5">
+                            <span class="material-symbols-outlined text-[10px]">location_on</span>
+                            <span id="overlay-location-text-mobile"></span>
+                        </span>
+                    </div>
+                    <h1 id="overlay-title-mobile" class="text-lg font-serif font-medium text-black dark:text-white wrap-break-words leading-tight">无标题</h1>
+                </div>
+                <button class="close-overlay-btn shrink-0 w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-black dark:text-white" aria-label="关闭详情">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                </button>
+            </div>
+            <div class="flex items-center gap-4 text-[10px] text-gray-500 dark:text-gray-400 mb-3">
+                <span id="spec-camera-mobile" class="truncate">--</span>
+                <span class="text-gray-300 dark:text-gray-700">·</span>
+                <span id="spec-aperture-mobile">--</span>
+                <span class="text-gray-300 dark:text-gray-700">·</span>
+                <span id="spec-shutter-mobile">--</span>
+                <span class="text-gray-300 dark:text-gray-700">·</span>
+                <span id="spec-iso-mobile">--</span>
+            </div>
+            <p id="overlay-desc-mobile" class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">暂无描述</p>
+        </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script is:inline define:vars={{ clientSideData }}>
+  // 把逻辑封装到一个初始化函数中
+  function initGallery() {
+      const images = clientSideData;
+
+      // 如果没有图片，直接返回
+      if (!images || images.length === 0) return;
+
+      const startBtn = document.getElementById('start-btn');
+      const introCover = document.getElementById('intro-cover');
+
+      if (startBtn && introCover) {
+          startBtn.addEventListener('click', () => {
+              introCover.style.transform = 'translateY(-100%)';
+          });
+      }
+
+      let currentIndex = 0;
+
+      // 批量获取 DOM 元素 - 减少重复查询
+      const dom = {
+          // 主视图
+          mainImage: document.getElementById('main-image'),
+          titleEl: document.getElementById('image-title'),
+          metaEl: document.getElementById('image-meta'),
+          dots: document.querySelectorAll('.dot-btn'),
+          // 详情面板 - 桌面端
+          overlay: document.getElementById('details-overlay'),
+          overlayImg: document.getElementById('overlay-img'),
+          overlayTitle: document.getElementById('overlay-title'),
+          overlayDesc: document.getElementById('overlay-desc'),
+          overlayYear: document.getElementById('overlay-year'),
+          overlayLocation: document.getElementById('overlay-location'),
+          overlayLocationText: document.getElementById('overlay-location-text'),
+          specCamera: document.getElementById('spec-camera'),
+          specLens: document.getElementById('spec-lens'),
+          specFocal: document.getElementById('spec-focal'),
+          specShutter: document.getElementById('spec-shutter'),
+          specIso: document.getElementById('spec-iso'),
+          specAperture: document.getElementById('spec-aperture'),
+          // 详情面板 - 移动端
+          overlayTitleMobile: document.getElementById('overlay-title-mobile'),
+          overlayYearMobile: document.getElementById('overlay-year-mobile'),
+          overlayLocationMobile: document.getElementById('overlay-location-mobile'),
+          overlayLocationTextMobile: document.getElementById('overlay-location-text-mobile'),
+          specCameraMobile: document.getElementById('spec-camera-mobile'),
+          specApertureMobile: document.getElementById('spec-aperture-mobile'),
+          specShutterMobile: document.getElementById('spec-shutter-mobile'),
+          specIsoMobile: document.getElementById('spec-iso-mobile'),
+          overlayDescMobile: document.getElementById('overlay-desc-mobile'),
+          // 按钮
+          prevBtn: document.getElementById('prev-btn'),
+          nextBtn: document.getElementById('next-btn'),
+          infoTrigger: document.getElementById('info-trigger'),
+          // 状态
+          imageStatus: document.getElementById('image-status'),
+      };
+
+      const { mainImage, titleEl, metaEl, dots, overlay, overlayImg, overlayTitle, overlayDesc, overlayYear, overlayLocation, overlayLocationText, specCamera, specLens, specFocal, specShutter, specIso, specAperture, overlayTitleMobile, overlayYearMobile, overlayLocationMobile, overlayLocationTextMobile, specCameraMobile, specApertureMobile, specShutterMobile, specIsoMobile, overlayDescMobile, prevBtn, nextBtn, infoTrigger, imageStatus } = dom;
+
+      const preloadImage = (src) => { const img = new Image(); img.src = src; };
+
+      // ========== 增强预加载系统 ==========
+      const PRELOAD_RANGE = 3; // 前后各预加载3张
+      const preloadedUrls = new Set(); // 追踪已预加载的图片
+      let preloadScheduled = false; // 避免重复调度
+
+      // 智能预加载函数 - 使用 requestIdleCallback 不阻塞主线程
+      function smartPreload(indices, priority = false) {
+          const urlsToPreload = [];
+
+          indices.forEach(idx => {
+              const url = images[idx]?.src;
+              if (url && !preloadedUrls.has(url)) {
+                  preloadedUrls.add(url);
+                  urlsToPreload.push(url);
+              }
+          });
+
+          if (urlsToPreload.length === 0) return;
+
+          if (priority) {
+              // 高优先级：立即预加载（用户正在交互）
+              urlsToPreload.forEach(url => preloadImage(url));
+          } else {
+              // 低优先级：使用 requestIdleCallback 在空闲时预加载
+              if (!preloadScheduled) {
+                  preloadScheduled = true;
+                  if ('requestIdleCallback' in window) {
+                      requestIdleCallback(() => {
+                          urlsToPreload.forEach(url => preloadImage(url));
+                          preloadScheduled = false;
+                      }, { timeout: 2000 });
+                  } else {
+                      // 兼容不支持 requestIdleCallback 的浏览器
+                      setTimeout(() => {
+                          urlsToPreload.forEach(url => preloadImage(url));
+                          preloadScheduled = false;
+                      }, 100);
+                  }
+              }
+          }
+      }
+
+      // 获取需要预加载的图片索引
+      function getIndicesToPreload(currentIdx) {
+          const indices = [];
+          const len = images.length;
+
+          // 前后各 PRELOAD_RANGE 张
+          for (let i = 1; i <= PRELOAD_RANGE; i++) {
+              indices.push((currentIdx + i) % len); // 下一张
+              indices.push((currentIdx - i + len) % len); // 上一张
+          }
+
+          return indices;
+      }
+
+      // 初始预加载第一张周围的图片
+      smartPreload(getIndicesToPreload(0), true);
+
+      function updateView(index) {
+        if (!images[index] || !mainImage) return;
+        const item = images[index];
+        mainImage.classList.remove('opacity-100');
+        mainImage.classList.add('opacity-0');
+
+        // 图片加载错误处理
+        mainImage.onerror = () => {
+            console.warn('Failed to load image:', item.src);
+            mainImage.alt = 'Image failed to load';
+        };
+
+        setTimeout(() => {
+            mainImage.src = item.src;
+            if(titleEl) titleEl.textContent = item.title || '无标题';
+            if(metaEl) metaEl.textContent = `${item.year || '--'} · DETAILS`;
+
+            const onImageReady = () => {
+                mainImage.classList.remove('opacity-0');
+                mainImage.classList.add('opacity-100');
+                // 更新屏幕阅读器状态
+                if (imageStatus) imageStatus.textContent = `第 ${index + 1} 张，共 ${images.length} 张：${item.title || '无标题'}`;
+            };
+
+            if (mainImage.complete) { onImageReady(); } else { mainImage.onload = onImageReady; setTimeout(onImageReady, 500); }
+
+            dots.forEach((dot, i) => {
+               if (i === index) {
+                   dot.className = 'dot-btn flex-shrink-0 h-1.5 w-8 bg-black dark:bg-white';
+                   dot.setAttribute('aria-current', 'true');
+                   dot.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+               }
+               else {
+                   dot.className = 'dot-btn flex-shrink-0 h-1.5 w-2 bg-gray-400/50 cursor-pointer';
+                   dot.setAttribute('aria-current', 'false');
+               }
+            });
+
+            // 使用智能预加载（低优先级，不阻塞用户交互）
+            smartPreload(getIndicesToPreload(index));
+        }, 200);
+      }
+
+      function openOverlay() {
+          const item = images[currentIndex];
+          overlayImg.src = item.src;
+          overlayTitle.textContent = item.title;
+          // 服务端已经把换行符替换为 <br> 标签，直接用 innerHTML 显示
+          overlayDesc.innerHTML = item.desc || '暂无描述';
+
+          // 桌面端位置
+          const displayLocation = item.location?.trim() || '';
+          if (displayLocation) {
+              overlayLocationText.textContent = displayLocation;
+              overlayLocation.classList.remove('opacity-0');
+              overlayLocationTextMobile.textContent = displayLocation;
+              overlayLocationMobile.classList.remove('hidden');
+              overlayLocationMobile.classList.add('inline-flex');
+          } else {
+              overlayLocation.classList.add('opacity-0');
+              overlayLocationMobile.classList.add('hidden');
+              overlayLocationMobile.classList.remove('inline-flex');
+          }
+
+          // 桌面端技术参数 - 添加默认值处理
+          specCamera.textContent = item.specs.camera || '--';
+          specLens.textContent = item.specs.lens || '--';
+          specAperture.textContent = item.specs.aperture || '--';
+          specShutter.textContent = item.specs.shutter || '--';
+          specIso.textContent = item.specs.iso || '--';
+          // 从镜头中提取焦距
+          if (specFocal) {
+              const focalMatch = item.specs.lens?.match(/(\d+(?:\.\d+)?)\s*mm/i);
+              specFocal.textContent = focalMatch ? focalMatch[1] + 'mm' : '--';
+          }
+
+          // 移动端 - 修复相机名称处理
+          overlayTitleMobile.textContent = item.title;
+          if (overlayYearMobile) overlayYearMobile.textContent = item.year || '--';
+          if (specCameraMobile) {
+              // 尝试获取相机品牌后的型号，如果没有则使用完整名称
+              const cameraParts = (item.specs.camera || '').split(' ');
+              specCameraMobile.textContent = cameraParts.length > 1 ? cameraParts.slice(1).join(' ') : (item.specs.camera || '--');
+          }
+          if (specApertureMobile) specApertureMobile.textContent = item.specs.aperture || '--';
+          if (specShutterMobile) specShutterMobile.textContent = item.specs.shutter || '--';
+          if (specIsoMobile) specIsoMobile.textContent = item.specs.iso || '--';
+          // 服务端已经把换行符替换为 <br> 标签，直接用 innerHTML 显示
+          overlayDescMobile.innerHTML = item.desc || '暂无描述';
+
+          // 禁用背景滚动（防止移动端详情面板弹出时背景可滚动）
+          document.body.style.overflow = 'hidden';
+
+          overlay.classList.remove('opacity-0', 'pointer-events-none');
+          overlay.classList.add('opacity-100', 'pointer-events-auto');
+      }
+
+      function closeOverlay() {
+          if (!overlay) return;
+          overlay.classList.remove('opacity-100', 'pointer-events-auto');
+          overlay.classList.add('opacity-0', 'pointer-events-none');
+          // 恢复背景滚动
+          document.body.style.overflow = '';
+      }
+
+      // 绑定点击事件
+      infoTrigger?.addEventListener('click', openOverlay);
+
+      // info-trigger 是 div，需要添加键盘支持
+      infoTrigger?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openOverlay();
+          }
+      });
+
+      document.querySelectorAll('.close-overlay-btn').forEach(btn => btn.addEventListener('click', closeOverlay));
+
+      const goNext = () => {
+          currentIndex = (currentIndex + 1) % images.length;
+          updateView(currentIndex);
+          // 高优先级预加载用户即将看到的下一张
+          smartPreload([(currentIndex + 1) % images.length], true);
+      };
+      const goPrev = () => {
+          currentIndex = (currentIndex - 1 + images.length) % images.length;
+          updateView(currentIndex);
+          // 高优先级预加载用户即将看到的上一张
+          smartPreload([(currentIndex - 1 + images.length) % images.length], true);
+      };
+
+      nextBtn?.addEventListener('click', goNext);
+      prevBtn?.addEventListener('click', goPrev);
+
+      dots.forEach((dot, idx) => {
+          dot.addEventListener('click', () => { currentIndex = idx; updateView(currentIndex); });
+      });
+
+      // 处理键盘事件（这是绑定在 document 上的，离开页面时必须移除！）
+      const handleKeydown = (e) => {
+         if (e.key === 'Escape') closeOverlay();
+         if (overlay.classList.contains('opacity-0')) {
+             if(e.key === 'ArrowRight') {
+                 e.preventDefault(); // 防止页面滚动
+                 goNext();
+                 // 高优先级预加载下一张（用户正在快速浏览）
+                 smartPreload([(currentIndex + 1) % images.length], true);
+             }
+             if(e.key === 'ArrowLeft') {
+                 e.preventDefault();
+                 goPrev();
+                 // 高优先级预加载上一张
+                 smartPreload([(currentIndex - 1 + images.length) % images.length], true);
+             }
+         }
+      };
+      document.addEventListener('keydown', handleKeydown);
+
+      // 改进清理函数 - 使用标志位防止重复清理
+      let cleanupRan = false;
+      const cleanup = () => {
+          if (cleanupRan) return;
+          cleanupRan = true;
+          document.removeEventListener('keydown', handleKeydown);
+          // 确保恢复 body 滚动状态
+          document.body.style.overflow = '';
+      };
+
+      // 监听页面切换
+      document.addEventListener('astro:before-swap', cleanup, { once: true });
+      // 备用：页面卸载时也清理
+      window.addEventListener('unload', cleanup, { once: true });
+  }
+
+  // 核心修复：监听 astro:page-load 事件
+  // 无论是首次加载，还是从其他页面"返回"回来，这个事件都会触发
+  document.addEventListener('astro:page-load', initGallery);
+</script>
+
+<style>
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 进度条点击时的动画反馈 */
+.dot-btn:active {
+    transform: scale(0.9);
+}
+
+/* 当前激活的进度条稍微放大 */
+.dot-btn[aria-current="true"] {
+    transform: scale(1.1);
+}
+
+/* ====== 详情面板过渡效果 ====== */
+#details-overlay {
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+#details-overlay.opacity-0 {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#details-overlay:not(.opacity-0) {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 详情面板内部元素入场动画 */
+#details-overlay:not(.opacity-0) .w-2\/3,
+#details-overlay:not(.opacity-0) .w-1\/3 {
+    animation: slideIn 0.35s ease-out forwards;
+}
+
+#details-overlay:not(.opacity-0) .w-2\/3 {
+    animation-delay: 0.05s;
+    transform: translateX(-20px);
+    opacity: 0;
+}
+
+#details-overlay:not(.opacity-0) .w-1\/3 {
+    animation-delay: 0.1s;
+    transform: translateX(20px);
+    opacity: 0;
+}
+
+@keyframes slideIn {
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 移动端详情面板入场 */
+#details-overlay:not(.opacity-0) .absolute.bottom-0 {
+    animation: slideUp 0.3s ease-out forwards;
+    transform: translateY(20px);
+    opacity: 0;
+    animation-delay: 0.1s;
+}
+
+@keyframes slideUp {
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* 主图片切换过渡 */
+#main-image {
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* 进度条按钮过渡 */
+.dot-btn {
+    transition: all 0.2s ease;
+}
+
+/* 信息触发器悬停效果 */
+#info-trigger {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+#info-trigger:hover {
+    transform: scale(1.02);
+}
+
+/* Intro 遮罩层过渡优化 */
+#intro-cover {
+    transition: transform 0.8s cubic-bezier(0.7, 0, 0.3, 1);
+}
+</style>

@@ -1,11 +1,15 @@
 ---
+// src/layouts/BaseLayout.astro
+
+// ✅ 1. 引入重置样式和全局样式
+import { ClientRouter } from "astro:transitions";
 import "~/styles/reset.css";
 import "~/styles/base.css";
+import "~/styles/global.css"; // <--- 这一行绝对不能少！
 
 import smartypants from "smartypants";
 
-const siteName = "Astro Photo Grid";
-
+const siteName = "embrace";
 export interface Props {
   title: string;
   description: string;
@@ -16,36 +20,36 @@ export interface Props {
 }
 
 const { title, description, image } = Astro.props;
-
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const pageTitle = Astro.url.pathname === "/" ? title : `${title} · ${siteName}`;
 ---
 
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={canonicalURL} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet">
+
     <title set:html={smartypants(pageTitle, 1)} />
     <meta name="description" content={smartypants(description, 1)} />
+    
     <meta property="og:title" content={smartypants(title, 1)} />
     <meta property="og:type" content="website" />
     <meta property="og:description" content={smartypants(description, 1)} />
     <meta property="og:url" content={canonicalURL} />
-    <meta property="og:locale" content="en_US" />
     <meta property="og:site_name" content={siteName} />
-    {
-      image && (
-        <>
-          <meta property="og:image" content={image.src} />
-          <meta property="og:image:alt" content={image.alt} />
-        </>
-      )
-    }
+    {image && <meta property="og:image" content={image.src} />}
+    <ClientRouter />
   </head>
-  <body>
+  <body class="bg-white dark:bg-black m-0 p-0">
     <slot />
   </body>
 </html>

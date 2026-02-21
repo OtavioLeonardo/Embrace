@@ -1,0 +1,312 @@
+---
+// src/components/Lightbox.astro
+import type { ClientImageData, LightboxOptions } from "~/types";
+
+interface Props {
+  items: ClientImageData[];
+  options?: LightboxOptions;
+}
+
+const {
+  items,
+  options = {
+    showInfoTrigger: true,
+    showProgress: true,
+    enableKeyboard: true,
+    enableSwipe: true,
+    animationDuration: 300,
+  },
+} = Astro.props;
+
+const {
+  showInfoTrigger = true,
+  showProgress = true,
+  enableKeyboard = true,
+  enableSwipe = true,
+  animationDuration = 300,
+} = options;
+---
+
+<div 
+  id="lightbox" 
+  class="fixed inset-0 z-100 bg-white dark:bg-black hidden items-center justify-center"
+  data-animation-duration={animationDuration}
+>
+  <!-- 关闭按钮 -->
+  <button 
+    id="lb-close" 
+    class="absolute top-6 right-6 z-50 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white p-2"
+    aria-label="关闭"
+  >
+    <span class="material-symbols-outlined text-3xl">close</span>
+  </button>
+
+  <!-- 内容区域 -->
+  <div 
+    id="lb-scale-wrapper" 
+    class="fixed inset-0 flex flex-col items-center justify-center p-8 md:p-12"
+  >
+    <!-- 主图片 -->
+    <img 
+      id="lb-img" 
+      src="" 
+      class="max-w-[85vw] max-h-[65vh] object-contain border border-gray-200 dark:border-gray-800" 
+      alt=""
+    />
+    
+    <!-- 图片信息 -->
+    <div class="mt-8 text-center max-w-2xl">
+      <div class="flex items-center justify-center gap-3 mb-3">
+        <span id="lb-year" class="text-gray-500 dark:text-gray-400 text-[10px] tracking-[0.3em] uppercase font-medium"></span>
+        <span class="w-px h-3 bg-gray-300 dark:bg-gray-700"></span>
+        <span id="lb-camera" class="text-gray-400 dark:text-gray-500 text-[10px] tracking-wider"></span>
+      </div>
+      <h2 id="lb-title" class="text-black dark:text-white text-2xl md:text-3xl font-serif italic mb-2"></h2>
+      <p id="lb-desc" class="text-gray-600 dark:text-gray-400 text-sm font-light tracking-wide leading-relaxed"></p>
+      
+      <!-- EXIF 信息 -->
+      <div class="mt-6 flex justify-center items-center gap-6 text-gray-400 dark:text-gray-500 text-[11px] font-mono tracking-wider border-t border-gray-200 dark:border-gray-800 pt-6">
+        <span id="lb-iso"></span>
+        <span class="w-px h-3 bg-gray-300 dark:bg-gray-700"></span>
+        <span id="lb-aperture"></span>
+        <span class="w-px h-3 bg-gray-300 dark:bg-gray-700"></span>
+        <span id="lb-shutter"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 上一张按钮 -->
+  <button 
+    id="lb-prev" 
+    class="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white p-4 md:p-6 cursor-pointer"
+    aria-label="上一张"
+  >
+    <span class="text-xs font-medium tracking-[0.3em] uppercase">上一张</span>
+  </button>
+
+  <!-- 下一张按钮 -->
+  <button 
+    id="lb-next" 
+    class="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white p-4 md:p-6 cursor-pointer"
+    aria-label="下一张"
+  >
+    <span class="text-xs font-medium tracking-[0.3em] uppercase">下一张</span>
+  </button>
+</div>
+
+<!-- 进度指示器（可选） -->
+{showProgress && (
+  <div 
+    id="lb-progress" 
+    class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-2"
+  >
+    {items.map((_, index) => (
+      <button 
+        class={`lb-dot h-1.5 ${index === 0 ? 'w-8 bg-black dark:bg-white' : 'w-2 bg-gray-300 dark:bg-gray-700'}`}
+        data-index={index}
+        aria-label={`跳转到第 ${index + 1} 张`}
+      />
+    ))}
+  </div>
+)}
+
+<script is:inline define:vars={{ items, enableKeyboard, enableSwipe, animationDuration }}>
+  // 灯箱功能
+  function initLightbox() {
+    const lightbox = document.getElementById('lightbox');
+    const lbScaleWrapper = document.getElementById('lb-scale-wrapper');
+    const lbImg = document.getElementById('lb-img');
+    const lbTitle = document.getElementById('lb-title');
+    const lbDesc = document.getElementById('lb-desc');
+    const lbYear = document.getElementById('lb-year');
+    const lbCamera = document.getElementById('lb-camera');
+    const lbIso = document.getElementById('lb-iso');
+    const lbAperture = document.getElementById('lb-aperture');
+    const lbShutter = document.getElementById('lb-shutter');
+    const closeBtn = document.getElementById('lb-close');
+    const prevBtn = document.getElementById('lb-prev');
+    const nextBtn = document.getElementById('lb-next');
+    const dots = document.querySelectorAll('.lb-dot');
+    
+    let currentIndex = 0;
+    let lastSourceRect = null; // 存储上一次的 sourceRect，用于关闭动画
+    const duration = animationDuration || 300;
+
+    // 更新视图
+    function updateView(index) {
+      if (index < 0 || index >= items.length) return;
+      currentIndex = index;
+      const item = items[index];
+      
+      if (!item || !lbImg) return;
+      
+      // 更新图片
+      lbImg.src = item.src || '';
+      lbImg.alt = item.title || '图片';
+      
+      // 更新信息
+      if (lbTitle) lbTitle.textContent = item.title || '';
+      if (lbDesc) lbDesc.textContent = item.desc || '';
+      if (lbYear) lbYear.textContent = item.year || '';
+      if (lbCamera) lbCamera.textContent = item.specs?.camera || '';
+      if (lbIso) lbIso.textContent = item.specs?.iso || '';
+      if (lbAperture) lbAperture.textContent = item.specs?.aperture || '';
+      if (lbShutter) lbShutter.textContent = item.specs?.shutter || '';
+
+      // 更新进度点
+      dots.forEach((dot, i) => {
+        if (i === index) {
+          dot.className = 'lb-dot h-1.5 w-8 bg-black dark:bg-white';
+        } else {
+          dot.className = 'lb-dot h-1.5 w-2 bg-gray-300 dark:bg-gray-700 cursor-pointer';
+        }
+      });
+
+      // 预加载相邻图片
+      preloadAdjacent(index);
+    }
+
+    // 预加载相邻图片
+    function preloadAdjacent(index) {
+      const preloadIndices = [
+        (index - 1 + items.length) % items.length,
+        (index + 1) % items.length
+      ];
+      
+      preloadIndices.forEach(i => {
+        const url = items[i]?.src;
+        if (url) {
+          const img = new Image();
+          img.src = url;
+        }
+      });
+    }
+
+    // 打开灯箱
+    window.openLightbox = function(index, sourceRect) {
+      if (index < 0 || index >= items.length) return;
+      
+      lastSourceRect = sourceRect;
+      updateView(index);
+      
+      lightbox?.classList.remove('hidden');
+      lightbox?.classList.add('flex');
+    };
+
+    // 监听来自其他组件的自定义事件（如 daily.astro 的 onclick）
+    window.addEventListener('open-lightbox', (e) => {
+      const index = e.detail?.index;
+      const sourceRect = e.detail?.sourceRect;
+      if (typeof index === 'number') {
+        window.openLightbox(index, sourceRect);
+      }
+    });
+
+    // 关闭灯箱
+    function closeLightbox() {
+      if (!lightbox) return;
+      
+      lightbox?.classList.remove('flex');
+      lightbox?.classList.add('hidden');
+      if (lbImg) lbImg.src = '';
+      lastSourceRect = null;
+    }
+
+    // 切换上一张
+    function goPrev() {
+      const newIndex = (currentIndex - 1 + items.length) % items.length;
+      window.openLightbox(newIndex);
+    }
+
+    // 切换下一张
+    function goNext() {
+      const newIndex = (currentIndex + 1) % items.length;
+      window.openLightbox(newIndex);
+    }
+
+    // 绑定事件
+    closeBtn?.addEventListener('click', closeLightbox);
+    prevBtn?.addEventListener('click', (e) => { e.stopPropagation(); goPrev(); });
+    nextBtn?.addEventListener('click', (e) => { e.stopPropagation(); goNext(); });
+    
+    // 点击图片关闭
+    lbImg?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeLightbox();
+    });
+
+    // 点击背景关闭
+    lightbox?.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    // 进度点点击
+    dots.forEach((dot) => {
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt(dot.getAttribute('data-index') || '0', 10);
+        window.openLightbox(index);
+      });
+    });
+
+    // 键盘事件
+    if (enableKeyboard) {
+      const handleKeydown = (e) => {
+        if (!lightbox || lightbox.classList.contains('opacity-0')) return;
+        
+        switch (e.key) {
+          case 'Escape':
+            closeLightbox();
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            goPrev();
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            goNext();
+            break;
+        }
+      };
+
+      document.addEventListener('keydown', handleKeydown);
+
+      // 清理
+      document.addEventListener('astro:before-swap', () => {
+        document.removeEventListener('keydown', handleKeydown);
+        window.openLightbox = undefined;
+      }, { once: true });
+    }
+
+    // 触摸滑动支持
+    if (enableSwipe) {
+      let touchStartX = 0;
+      let touchEndX = 0;
+
+      lightbox?.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+
+      lightbox?.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+      }, { passive: true });
+
+      function handleSwipe() {
+        const swipeThreshold = 50;
+        const diff = touchStartX - touchEndX;
+        
+        if (Math.abs(diff) > swipeThreshold) {
+          if (diff > 0) {
+            goNext(); // 向左滑 = 下一张
+          } else {
+            goPrev(); // 向右滑 = 上一张
+          }
+        }
+      }
+    }
+  }
+
+  // 初始化
+  document.addEventListener('astro:page-load', initLightbox);
+</script>

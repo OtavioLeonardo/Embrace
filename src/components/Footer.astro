@@ -1,0 +1,21 @@
+---
+// src/components/Footer.astro
+interface Props {
+  showDivider?: boolean;
+  copyright?: string;
+  subtitle?: string;
+}
+
+const {
+  showDivider = true,
+  copyright = "© 2026 拥入怀中",
+  subtitle = "影像博物馆",
+} = Astro.props;
+---
+
+<footer class:list={["px-8 py-12", showDivider ? "border-t border-gray-200 dark:border-gray-800" : ""]}>
+  <div class="max-w-screen-2xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] tracking-[0.2em] text-gray-500 dark:text-gray-400">
+    <span>{copyright}</span>
+    <span class="font-serif italic text-black dark:text-white">{subtitle}</span>
+  </div>
+</footer>

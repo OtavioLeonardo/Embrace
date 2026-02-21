@@ -20,7 +20,29 @@
     "lineEnding": "lf"
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
-  "linter": { "enabled": true, "rules": { "recommended": true } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "css": {
+        "noUnknownAtRules": {
+          "level": "warn",
+          "options": {
+            "allow": [
+              "tailwind",
+              "apply",
+              "variants",
+              "responsive",
+              "screen",
+              "layer",
+              "config",
+              "theme"
+            ]
+          }
+        }
+      }
+    }
+  },
   "overrides": [
     {
       "includes": ["**/*.astro"],
