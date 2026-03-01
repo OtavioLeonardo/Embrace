@@ -13,8 +13,6 @@ export async function getStaticPaths() {
 
 const { story } = Astro.props;
 const { Content } = await render(story);
-
-const currentPath: string = "stories";
 ---
 
 <BaseLayout title={story.data.title} description={story.data.excerpt}>
@@ -104,7 +102,6 @@ const currentPath: string = "stories";
 
 <script>
   const heroImage = document.getElementById('hero-image');
-  const contentSection = document.getElementById('content-section');
   
   // 滚动时控制全屏照片的透明度和位置
   window.addEventListener('scroll', () => {

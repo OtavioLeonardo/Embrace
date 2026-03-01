@@ -14,11 +14,6 @@ interface Props {
 
 const { src, alt, layout = "default", caption, class: className } = Astro.props;
 
-// 处理字符串路径的图片
-const imageSrc = typeof src === "string" ? src : src.src;
-const imageWidth = typeof src === "string" ? undefined : src.width;
-const imageHeight = typeof src === "string" ? undefined : src.height;
-
 // 判断是否为竖版图片（高度大于宽度）
 const isVertical =
   typeof src === "string"

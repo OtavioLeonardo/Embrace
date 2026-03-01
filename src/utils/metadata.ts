@@ -89,7 +89,7 @@ export async function getStoryCovers(): Promise<Map<string, StoryInfo>> {
         }
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // 静默处理错误
   }
 
@@ -441,7 +441,7 @@ export async function extractImageMetadata(
     if (storyInfo) {
       meta.story = storyInfo;
     }
-  } catch (error) {
+  } catch (_error) {
     // 静默处理错误，不影响页面渲染
   }
 

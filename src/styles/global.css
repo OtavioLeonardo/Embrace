@@ -167,5 +167,5 @@ button,
 [role="button"],
 .nav-btn,
 .interactive {
-  pointer-events: auto !important;
+  pointer-events: auto;
 }

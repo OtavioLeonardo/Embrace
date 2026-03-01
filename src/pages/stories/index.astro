@@ -1,7 +1,5 @@
 ---
 import { getCollection } from "astro:content";
-import fs from "node:fs/promises";
-import path from "node:path";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 
 // 获取所有故事（使用 Astro 内容集合）
@@ -11,8 +9,6 @@ const stories = await getCollection("stories");
 stories.sort(
   (a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime(),
 );
-
-const currentPath: string = "stories";
 ---
 
 <BaseLayout title="故事" description="照片故事">

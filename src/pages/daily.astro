@@ -115,8 +115,6 @@ const clientSideData = galleryItems.map((item) => ({
   specs: item.specs,
   thumbnail: item.thumbnail,
 }));
-
-const currentPath: string = "daily";
 ---
 
 <BaseLayout title="日常" description="日常即景，未成册的吉光片羽">
@@ -268,7 +266,7 @@ const currentPath: string = "daily";
       const sortedYears = Object.keys(yearGroups).sort((a, b) => b - a);
 
       let html = '';
-      sortedYears.forEach((year, yearIdx) => {
+      sortedYears.forEach((year) => {
         const yearItems = yearGroups[year];
         
         html += `

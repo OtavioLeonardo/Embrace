@@ -89,7 +89,6 @@ Object.entries(allImages).forEach(([filePath, mod]) => {
 });
 
 const sortedCollections = Object.keys(collectionGroups).sort();
-const currentPath: string = "";
 ---
 
 <BaseLayout title="首页" description="摄影作品集">
@@ -206,8 +205,6 @@ const currentPath: string = "";
     // 保存第一个项目的默认数据
     const firstItem = collectionItems[0] as HTMLElement;
     const defaultCover = firstItem?.dataset.cover || '';
-    const defaultExternal = firstItem?.dataset.external || '';
-    const defaultTitle = firstItem?.querySelector('span')?.textContent?.replace(/^\d+\.\s*/, '') || '';
 
     let staticTimeout: ReturnType<typeof setTimeout>;
 
