@@ -42,9 +42,9 @@ const currentPath: string = "stories";
           {stories.map((story) => (
             <a
               href={`/stories/${story.slug}`}
-              class="block story-card border-2 border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors group h-[400px] flex flex-col"
+              class="story-card border-2 border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors group h-[400px] flex flex-col"
             >
-              <div class="aspect-[4/3] overflow-hidden border-b-2 border-black dark:border-white">
+              <div class="aspect-4/3 overflow-hidden border-b-2 border-black dark:border-white">
                 <img
                   src={story.data.cover.src}
                   alt={story.data.title}
