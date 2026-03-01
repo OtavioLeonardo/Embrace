@@ -1,0 +1,111 @@
+---
+import { Image } from "astro:assets";
+
+// 支持的布局类型
+type Layout = "default" | "vertical" | "wide" | "grid" | "panorama";
+
+interface Props {
+  src: ImageMetadata | string;
+  alt: string;
+  layout?: Layout;
+  caption?: string;
+  class?: string;
+}
+
+const { src, alt, layout = "default", caption, class: className } = Astro.props;
+
+// 处理字符串路径的图片
+const imageSrc = typeof src === "string" ? src : src.src;
+const imageWidth = typeof src === "string" ? undefined : src.width;
+const imageHeight = typeof src === "string" ? undefined : src.height;
+
+// 判断是否为竖版图片（高度大于宽度）
+const isVertical =
+  typeof src === "string"
+    ? undefined
+    : src.height && src.width && src.height > src.width * 1.2;
+---
+
+<div 
+  class:list={[
+    "photo-container",
+    `layout-${layout}`,
+    { "is-vertical": isVertical },
+    className
+  ]}
+>
+  {typeof src === "string" ? (
+    <img 
+      src={src} 
+      alt={alt}
+      class="photo-img"
+      loading="lazy"
+    />
+  ) : (
+    <Image 
+      src={src} 
+      alt={alt}
+      class="photo-img"
+      loading="lazy"
+    />
+  )}
+  
+  {caption && <p class="photo-caption">{caption}</p>}
+</div>
+
+<style>
+  .photo-container {
+    margin: 2em 0;
+    width: 100%;
+  }
+
+  /* 默认布局 - 自适应 */
+  .layout-default .photo-img {
+    width: 100%;
+    height: auto;
+    border: 2px solid;
+  }
+
+  /* 竖版照片 - 限制高度，居中显示 */
+  .layout-vertical .photo-img,
+  .is-vertical .photo-img {
+    max-height: 70vh;
+    width: auto;
+    max-width: 100%;
+    margin: 0 auto;
+    display: block;
+    border: 2px solid;
+  }
+
+  /* 宽幅照片 */
+  .layout-wide .photo-img,
+  .layout-panorama .photo-img {
+    width: 100%;
+    height: auto;
+    border: 2px solid;
+  }
+
+  /* 网格布局 - 稍小一些 */
+  .layout-grid .photo-img {
+    width: 100%;
+    height: auto;
+    border: 2px solid;
+  }
+
+  /* 图片说明 */
+  .photo-caption {
+    margin-top: 0.5em;
+    font-size: 0.875rem;
+    opacity: 0.7;
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* 响应式调整 */
+  @media (max-width: 768px) {
+    .layout-vertical .photo-img,
+    .is-vertical .photo-img {
+      max-height: 50vh;
+    }
+  }
+</style>

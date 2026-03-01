@@ -31,7 +31,7 @@ const pageTitle = Astro.url.pathname === "/" ? title : `${title} · ${siteName}`
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={canonicalURL} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    
+
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,7 +40,7 @@ const pageTitle = Astro.url.pathname === "/" ? title : `${title} · ${siteName}`
 
     <title set:html={smartypants(pageTitle, 1)} />
     <meta name="description" content={smartypants(description, 1)} />
-    
+
     <meta property="og:title" content={smartypants(title, 1)} />
     <meta property="og:type" content="website" />
     <meta property="og:description" content={smartypants(description, 1)} />
@@ -48,6 +48,64 @@ const pageTitle = Astro.url.pathname === "/" ? title : `${title} · ${siteName}`
     <meta property="og:site_name" content={siteName} />
     {image && <meta property="og:image" content={image.src} />}
     <ClientRouter />
+
+    <!-- 🛡️ 图片保护脚本：禁用右键菜单 -->
+    <script is:inline>
+      (function() {
+        // 禁用右键菜单 - 针对图片元素
+        document.addEventListener('contextmenu', function(e) {
+          const target = e.target;
+          // 检查是否是图片或图片的父元素
+          if (target.tagName === 'IMG' ||
+              target.closest('img') ||
+              target.classList.contains('protected-img') ||
+              target.closest('.protected-gallery')) {
+            e.preventDefault();
+            return false;
+          }
+        }, { capture: true });
+
+        // 禁用拖拽开始 - 针对图片
+        document.addEventListener('dragstart', function(e) {
+          const target = e.target;
+          if (target.tagName === 'IMG' ||
+              target.classList.contains('protected-img') ||
+              target.closest('.protected-gallery')) {
+            e.preventDefault();
+            return false;
+          }
+        }, { capture: true });
+
+        // 禁用触摸长按菜单（移动端）
+        document.addEventListener('touchstart', function(e) {
+          if (e.touches.length > 1) {
+            // 多指触控时不阻止
+            return;
+          }
+          // 记录触摸开始位置和时间
+          e.target.dataset.touchStartX = e.touches[0].clientX;
+          e.target.dataset.touchStartY = e.touches[0].clientY;
+          e.target.dataset.touchStartTime = Date.now();
+        }, { passive: true });
+
+        // 触摸结束检查是否是长按
+        document.addEventListener('touchend', function(e) {
+          const target = e.target;
+          const isImg = target.tagName === 'IMG' ||
+                       target.classList.contains('protected-img') ||
+                       target.closest('.protected-gallery') ||
+                       target.closest('img');
+
+          if (!isImg) return;
+
+          const touchDuration = Date.now() - parseInt(target.dataset.touchStartTime || '0');
+          // 如果长按超过 500ms，阻止默认菜单
+          if (touchDuration > 500) {
+            e.preventDefault();
+          }
+        }, { passive: false });
+      })();
+    </script>
   </head>
   <body class="bg-white dark:bg-black m-0 p-0">
     <slot />

@@ -3,6 +3,14 @@ import path from "node:path";
 import exifr from "exifr";
 
 /**
+ * Story 信息类型定义
+ */
+export interface StoryInfo {
+  slug: string;
+  title: string;
+}
+
+/**
  * 图片元数据类型定义
  */
 export interface ImageMetadata {
@@ -18,6 +26,7 @@ export interface ImageMetadata {
     iso: string;
   };
   desc: string;
+  story?: StoryInfo;
 }
 
 /**
@@ -36,6 +45,55 @@ export interface ClientImageData {
     shutter: string;
     iso: string;
   };
+  story?: StoryInfo;
+}
+
+// 缓存 story cover 信息，避免重复读取
+let storyCoversCache: Map<string, StoryInfo> | null = null;
+
+/**
+ * 获取所有 story 的 cover 图片映射
+ * key: 图片文件名, value: story 信息
+ */
+export async function getStoryCovers(): Promise<Map<string, StoryInfo>> {
+  if (storyCoversCache) {
+    return storyCoversCache;
+  }
+
+  storyCoversCache = new Map();
+
+  try {
+    // 动态导入 content collections
+    const { getCollection } = await import("astro:content");
+    const stories = await getCollection("stories");
+
+    for (const story of stories) {
+      // story.data.cover 是 Astro 的 ImageMetadata 对象
+      // 它的 src 属性包含处理后的图片路径，如 /_astro/这个好用.QWtQzyo5.jpg
+      const cover = story.data.cover as unknown as {
+        src: string;
+      };
+
+      if (cover?.src) {
+        // 从处理后的路径提取原始文件名
+        // 格式: /_astro/文件名.哈希.扩展名 -> 文件名
+        const srcParts = cover.src.split("/");
+        const lastPart = srcParts[srcParts.length - 1]; // "这个好用.QWtQzyo5.jpg"
+        const fileName = lastPart.split(".")[0]; // "这个好用"
+
+        if (fileName) {
+          storyCoversCache.set(fileName, {
+            slug: story.slug,
+            title: story.data.title,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    // 静默处理错误
+  }
+
+  return storyCoversCache;
 }
 
 /**
@@ -159,6 +217,39 @@ async function readExifChunk(filePath: string): Promise<Buffer | null> {
 }
 
 /**
+ * 从文件名中提取年份
+ * 支持格式：2024_12_25, 2024-12-25, IMG_20241225, DSC_2024 等
+ */
+function extractYearFromFileName(fileName: string): string | null {
+  // 移除文件扩展名
+  const name = fileName.replace(/\.[^/.]+$/, "");
+
+  // 尝试匹配各种日期格式
+  const patterns = [
+    // 2024_12_25 或 2024-12-25 格式
+    /^(\d{4})[_-]\d{2}[_-]\d{2}/,
+    // IMG_20241225 或 DSC01234_2024 格式
+    /[_-](\d{4})\d{2}\d{2}/,
+    // 年份在开头后面
+    /(\d{4})/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = name.match(pattern);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      // 验证是否为合理的年份 (1900-当前年份)
+      const currentYear = new Date().getFullYear();
+      if (year >= 1900 && year <= currentYear) {
+        return year.toString();
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * 从图片文件中提取 EXIF 元数据
  * @param collection 相册文件夹名称
  * @param fileName 图片文件名
@@ -209,12 +300,56 @@ export async function extractImageMetadata(
 
     if (!data) return meta;
 
-    // 解析日期
-    if (data.DateTimeOriginal) {
-      const date = new Date(data.DateTimeOriginal);
-      if (!Number.isNaN(date.getTime())) {
-        meta.year = date.getFullYear().toString();
+    // 解析日期 - 尝试多个可能的字段
+    const dateFields = [
+      "DateTimeOriginal", // 拍摄时间
+      "CreateDate", // 创建时间
+      "ModifyDate", // 修改时间
+      "DateTime", // 通用日期时间
+    ];
+
+    let foundYear: string | null = null;
+
+    for (const field of dateFields) {
+      if (data[field]) {
+        const dateValue = data[field];
+        // 处理不同类型的日期值
+        let date: Date | null = null;
+
+        if (typeof dateValue === "string") {
+          // 尝试解析字符串格式 (如 "2024:12:25 10:30:00")
+          const parsed = dateValue.replace(
+            /^(\d{4}):(\d{2}):(\d{2})/,
+            "$1-$2-$3",
+          );
+          date = new Date(parsed);
+        } else if (dateValue instanceof Date) {
+          date = dateValue;
+        } else if (typeof dateValue === "number") {
+          // 时间戳
+          date = new Date(dateValue * 1000);
+        }
+
+        if (date && !Number.isNaN(date.getTime())) {
+          foundYear = date.getFullYear().toString();
+          // 如果找到了有效的日期，跳出循环
+          if (foundYear !== new Date().getFullYear().toString()) {
+            break; // 使用找到的日期（不是当前年份）
+          }
+        }
       }
+    }
+
+    // 如果没有从 EXIF 找到有效日期，尝试从文件名提取
+    if (!foundYear || foundYear === new Date().getFullYear().toString()) {
+      const yearFromFileName = extractYearFromFileName(fileName);
+      if (yearFromFileName) {
+        foundYear = yearFromFileName;
+      }
+    }
+
+    if (foundYear) {
+      meta.year = foundYear;
     }
 
     // 解析标题
@@ -297,6 +432,19 @@ export async function extractImageMetadata(
     console.error(`Error extracting EXIF from ${fileName}:`, error);
   }
 
+  // 检查该图片是否是某个 story 的封面
+  try {
+    const storyCovers = await getStoryCovers();
+    // 去掉文件扩展名进行匹配
+    const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+    const storyInfo = storyCovers.get(fileNameWithoutExt);
+    if (storyInfo) {
+      meta.story = storyInfo;
+    }
+  } catch (error) {
+    // 静默处理错误，不影响页面渲染
+  }
+
   return meta;
 }
 
@@ -317,5 +465,6 @@ export function toClientData(images: ImageMetadata[]): ClientImageData[] {
       shutter: img.specs.shutter,
       iso: img.specs.iso,
     },
+    story: img.story,
   }));
 }

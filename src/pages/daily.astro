@@ -3,9 +3,7 @@ import { getImage } from "astro:assets";
 import fs from "node:fs/promises";
 import path from "node:path";
 import exifr from "exifr";
-import Footer from "../components/Footer.astro";
 import Lightbox from "../components/Lightbox.astro";
-import Navigation from "../components/Navigation.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 // --- 1. 乱码修复函数 ---
@@ -16,7 +14,6 @@ function fixEncoding(str: string): string {
   try {
     const fixed = Buffer.from(str, "binary").toString("utf8");
     if (fixed.includes("")) return str;
-    // 处理换行符：将 \r\n, \n, \r 替换为空格，避免在 HTML 中显示为 &#xA;
     return fixed
       .replace(/[\r\n]+/g, " ")
       .replace(/\s+/g, " ")
@@ -26,7 +23,7 @@ function fixEncoding(str: string): string {
   }
 }
 
-// --- 2. 数据获取 (扫描所有子文件夹) ---
+// --- 2. 数据获取 ---
 const allImages = import.meta.glob("../images/*.{jpg,jpeg,png,webp}", {
   eager: true,
 });
@@ -36,7 +33,6 @@ const galleryItems = await Promise.all(
     const imgData = (mod as any).default;
     const fileName = filePath.split("/").pop() || "Untitled";
 
-    // 初始化元数据
     let meta = {
       title: decodeURIComponent(fileName).replace(/\.[^/.]+$/, ""),
       desc: "",
@@ -51,11 +47,10 @@ const galleryItems = await Promise.all(
       },
     };
 
-    // --- 3. 读取 EXIF/IPTC ---
+    // 读取 EXIF/IPTC
     try {
       const relPath = filePath.replace("../", "src/");
       const realPath = path.join(process.cwd(), relPath);
-
       const buffer = await fs.readFile(realPath);
       const data = await exifr.parse(buffer, {
         exif: true,
@@ -63,46 +58,45 @@ const galleryItems = await Promise.all(
         iptc: true,
         xmp: true,
       });
-
-      if (data) {
+      if (data)
         if (data.DateTimeOriginal)
           meta.year = new Date(data.DateTimeOriginal).getFullYear().toString();
-        if (data.title?.value) meta.title = data.title.value;
-        else if (data.ObjectName) meta.title = fixEncoding(data.ObjectName);
+      if (data.title?.value) meta.title = data.title.value;
+      else if (data.ObjectName) meta.title = fixEncoding(data.ObjectName);
 
-        if (data.description?.value)
-          meta.desc = fixEncoding(data.description.value);
-        else if (data.Caption) meta.desc = fixEncoding(data.Caption);
-        else if (data.ImageDescription)
-          meta.desc = fixEncoding(data.ImageDescription);
+      if (data.description?.value)
+        meta.desc = fixEncoding(data.description.value);
+      else if (data.Caption) meta.desc = fixEncoding(data.Caption);
+      else if (data.ImageDescription)
+        meta.desc = fixEncoding(data.ImageDescription);
 
-        if (data.Model)
-          meta.specs.camera = data.Model.replace("ILCE-", "Sony ").replace(
-            "NIKON",
-            "Nikon ",
-          );
-        if (data.FNumber) meta.specs.aperture = `f/${data.FNumber}`;
-        if (data.ISO) meta.specs.iso = `ISO ${data.ISO}`;
-        if (data.ExposureTime)
-          meta.specs.shutter =
-            data.ExposureTime >= 1
-              ? `${data.ExposureTime}s`
-              : `1/${Math.round(1 / data.ExposureTime)}s`;
+      if (data.Model)
+        meta.specs.camera = data.Model.replace("ILCE-", "Sony ").replace(
+          "NIKON",
+          "Nikon ",
+        );
+      if (data.FNumber) meta.specs.aperture = `f/${data.FNumber}`;
+      if (data.ISO) meta.specs.iso = `ISO ${data.ISO}`;
+      if (data.ExposureTime)
+        meta.specs.shutter =
+          data.ExposureTime >= 1
+            ? `${data.ExposureTime}s`
+            : `1/${Math.round(1 / data.ExposureTime)}s`;
 
-        meta.exif = `${meta.specs.camera} · ${meta.specs.aperture}`;
-      }
+      meta.exif = `${meta.specs.camera} · ${meta.specs.aperture}`;
     } catch (e) {}
 
-    // --- 4. 生成缩略图 ---
+    // 生成缩略图
     const thumbnail = await getImage({
       src: imgData,
       format: "webp",
-      height: 400,
+      height: 600,
     });
 
     return {
-      imageData: imgData, // 保留原名，对应你代码里的 item.imageData
+      imageData: imgData,
       thumbnail: thumbnail,
+      fullSrc: imgData.src,
       ...meta,
     };
   }),
@@ -111,9 +105,9 @@ const galleryItems = await Promise.all(
 // 按时间倒序排列
 galleryItems.sort((a, b) => parseInt(b.year, 10) - parseInt(a.year, 10));
 
-// 构建客户端数据（添加 thumbnail 字段用于 Lightbox）
+// 客户端数据
 const clientSideData = galleryItems.map((item) => ({
-  src: item.imageData.src,
+  src: item.fullSrc,
   title: item.title,
   year: item.year,
   location: "",
@@ -125,166 +119,266 @@ const clientSideData = galleryItems.map((item) => ({
 const currentPath: string = "daily";
 ---
 
-<BaseLayout title="日常 moments" description="日常即景，未成册的吉光片羽">
-  <div class="bg-[#faf9f7] dark:bg-[#0a0a0a] text-[#1a1a1a] dark:text-[#e5e5e5] font-display transition-colors duration-700 min-h-screen">
-    
-    <!-- 导航栏 -->
-    <Navigation currentPath={currentPath} />
+<BaseLayout title="日常" description="日常即景，未成册的吉光片羽">
+  <div class="w-full bg-white dark:bg-black text-black dark:text-white font-mono min-h-screen">
 
-    <!-- 页面标题区域 -->
-    <header class="pt-48 pb-16 px-8 md:px-16 lg:px-24 max-w-screen-2xl mx-auto">
-      <div class="flex items-center gap-6 mb-8">
-        <span class="h-px w-16 bg-[#c9a962]/60"></span>
-        <span class="text-[#c9a962] text-[10px] font-medium uppercase tracking-[0.4em]">日常即景</span>
+    <header class="fixed top-0 left-0 w-full z-50 border-b-2 border-black dark:border-white bg-white dark:bg-black flex justify-center">
+      <div class="w-full flex items-center justify-between px-4 py-3 max-w-7xl">
+        <a href="/" class="text-xl font-bold tracking-widest hover:underline">拙石</a>
+        <span class="text-sm">日常</span>
       </div>
-      <h1 class="text-5xl md:text-7xl lg:text-8xl font-serif font-light tracking-tight mb-6 text-[#1a1a1a] dark:text-white">
-        日常
-      </h1>
-      <p class="text-[#666] dark:text-[#888] text-lg md:text-xl font-light max-w-xl leading-relaxed">
-        未成册的吉光片羽，定格日常的瞬息。
-      </p>
     </header>
 
-    <!-- 画廊主体 -->
-    <main class="px-4 md:px-8 lg:px-12 pb-32">
-      {galleryItems.length > 0 ? (
-        <div class="columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 md:gap-8">
-          {galleryItems.map((item, index) => (
-            <div class="break-inside-avoid mb-6 md:mb-8 group cursor-zoom-in" data-index={index}>
-              
-              <!-- 卡片容器 -->
-              <div class="relative overflow-hidden bg-white dark:bg-[#141414] shadow-sm hover:shadow-2xl transition-all duration-500">
-                <!-- 图片 -->
-                <div class="relative overflow-hidden">
-                  <img 
-                    src={item.thumbnail.src} 
-                    alt={item.title}
-                    class="w-full h-auto object-cover transition-all duration-700 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  <!-- 优雅的暗角效果 -->
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                </div>
-                
-                <!-- 信息区域 -->
-                <div class="p-4 md:p-5 border-t border-[#f0f0f0] dark:border-[#222]">
-                  <div class="flex items-baseline justify-between mb-2">
-                    <span class="text-[10px] tracking-[0.25em] uppercase text-[#c9a962] font-medium">
-                      {item.year}
-                    </span>
-                    <span class="text-[9px] tracking-widest text-[#999] uppercase">
-                      {item.specs.camera}
-                    </span>
-                  </div>
-                  <h3 class="text-[15px] font-serif text-[#1a1a1a] dark:text-[#e5e5e5] tracking-wide leading-relaxed">
-                    {item.title}
-                  </h3>
-                  {item.desc && (
-                    <p class="mt-2 text-[11px] text-[#888] font-light leading-relaxed line-clamp-2">
-                      {item.desc}
-                    </p>
-                  )}
-                  <!-- 隐藏的 EXIF 数据，用于 lightbox -->
-                  <div class="hidden text-[9px] text-[#666] font-mono tracking-wider">
-                    {item.specs.iso} · {item.specs.aperture} · {item.specs.shutter}
-                  </div>
-                </div>
-
-                <!-- 悬浮时的装饰线 -->
-                <div class="absolute bottom-0 left-0 right-0 h-px bg-[#c9a962] transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-              </div>
-
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div class="flex flex-col items-center justify-center min-h-[40vh] px-8">
-          <div class="text-center">
-            <span class="block text-6xl mb-6 text-[#c9a962]/30">◑</span>
-            <h3 class="font-serif text-2xl text-[#1a1a1a] dark:text-white mb-4">暂无日常</h3>
-            <p class="text-[#888] text-sm font-light tracking-wide">
-              请在 <code class="text-[#c9a962]">src/images/</code> 文件夹中放入照片<br/>
-              这些将作为日常散片展示
+    <div class="w-full flex justify-center">
+      <div class="w-full pt-28 pb-8 px-4 md:px-8 max-w-7xl border-b-2 border-black dark:border-white">
+        <div class="flex items-start justify-between">
+          <div>
+            <h1 class="text-4xl md:text-6xl font-serif font-light tracking-tight">
+              日常
+            </h1>
+            <p class="mt-2 text-sm opacity-70">
+              未成册的吉光片羽，定格日常的瞬息。
             </p>
           </div>
+          <button
+            id="view-toggle"
+            class="hidden md:flex items-center gap-2 px-3 py-2 border-2 border-black dark:border-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors text-sm"
+          >
+            <span class="material-symbols-outlined text-base">view_timeline</span>
+            <span>时间线</span>
+          </button>
         </div>
-      )}
+      </div>
+    </div>
 
-      <!-- 底部留白装饰 -->
-      {galleryItems.length > 0 && (
-        <div class="mt-24 flex justify-center">
-          <div class="flex flex-col items-center gap-4 text-[#ccc]">
-            <span class="w-px h-12 bg-gradient-to-b from-transparent via-[#c9a962] to-transparent"></span>
-            <span class="text-[10px] tracking-[0.4em]">日常尽头</span>
-            <span class="w-px h-12 bg-gradient-to-b from-transparent via-[#c9a962] to-transparent"></span>
+    <main class="w-full px-4 md:px-8 pb-16 flex flex-col items-center">
+      {galleryItems.length > 0 ? (
+        <div class="w-full max-w-7xl">
+          <div id="masonry-view" class="w-full columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 pt-8" style="pointer-events: auto;">
+          {galleryItems.map((item, index) => (
+            <div
+              class="break-inside-avoid mb-6 cursor-pointer daily-photo protected-gallery"
+              data-index={index}
+              style="pointer-events: auto;"
+            >
+              <div class="protection-overlay" aria-hidden="true"></div>
+              <div class="border-2 border-black dark:border-white">
+                <div class="overflow-hidden">
+                  <img
+                    src={item.thumbnail.src}
+                    alt={item.title}
+                    class="w-full h-auto object-cover"
+                    loading="lazy"
+                  />
+                </div>
+
+                <div class="p-3 border-t-2 border-black dark:border-white">
+                  <div class="flex items-baseline justify-between">
+                    <span class="text-xs font-bold uppercase">{item.year}</span>
+                    <span class="text-[10px] uppercase opacity-70">{item.specs.camera}</span>
+                  </div>
+                  <h3 class="text-sm font-bold mt-1">{item.title}</h3>
+                </div>
+              </div>
+            </div>
+          ))}
+          </div>
+
+          <div id="timeline-view" class="w-full hidden pt-8 max-w-4xl mx-auto" style="pointer-events: auto;">
+            </div>
+        </div>
+      ) : (
+        <div class="w-full flex flex-col items-center justify-center min-h-[40vh] pt-24 max-w-7xl">
+          <div class="text-center border-2 border-black dark:border-white p-8">
+            <h3 class="font-serif text-2xl mb-4">暂无日常</h3>
+            <p class="text-sm">
+              请在 <code class="bg-gray-200 dark:bg-gray-800 px-1">src/images/</code> 文件夹中放入照片
+            </p>
           </div>
         </div>
       )}
     </main>
 
-    <!-- 页脚 -->
-    <Footer />
+    <div class="w-full flex justify-center">
+      <div class="w-full px-4 pb-8 max-w-7xl">
+        <div class="pt-6 border-t-4 border-black dark:border-white">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div class="flex flex-col gap-2 text-sm">
+              <a href="/" class="font-bold hover:underline">[ 首页 ]</a>
+              <a href="#" class="font-bold hover:underline">[ 简历 ]</a>
+              <a href="#" class="font-bold hover:underline">[ 邮箱 ]</a>
+              <a href="#" class="font-bold hover:underline">[ Instagram ]</a>
+            </div>
+            <div class="text-sm">
+              <p>{galleryItems.length} 张照片</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- 灯箱 -->
   <Lightbox items={clientSideData} options={{ showProgress: false, enableKeyboard: true, enableSwipe: true }} />
 </BaseLayout>
 
 <script is:inline define:vars={{ clientSideData }}>
   function initDaily() {
-      const items = clientSideData;
-      
-      // 绑定点击事件到每个卡片
-      document.querySelectorAll('[data-index]').forEach(el => {
-          el.addEventListener('click', () => {
-              const index = parseInt(el.dataset.index, 10);
-              if (index >= 0 && index < items.length) {
-                  // 触发 Lightbox 组件的 open-lightbox 事件
-                  window.dispatchEvent(new CustomEvent('open-lightbox', { 
-                      detail: { index } 
-                  }));
-              }
-          });
+    const photos = document.querySelectorAll('.daily-photo');
+
+    // 如果没有照片，直接返回
+    if (photos.length === 0) {
+      return;
+    }
+
+    // 绑定点击事件到每个卡片 - 打开灯箱
+    photos.forEach(el => {
+      el.addEventListener('click', (e) => {
+        // 阻止事件冒泡
+        e.stopPropagation();
+        const index = parseInt(el.dataset.index, 10);
+        
+        if (index >= 0 && index < clientSideData.length) {
+          window.dispatchEvent(new CustomEvent('open-lightbox', {
+            detail: { index }
+          }));
+        }
       });
+    });
+
+    // ===== 时间线视图功能 =====
+    const toggleBtn = document.getElementById('view-toggle');
+    const masonryView = document.getElementById('masonry-view');
+    const timelineView = document.getElementById('timeline-view');
+    let isTimelineView = false;
+
+    // 生长时间线 HTML
+    function renderTimeline() {
+      // 按年份分组
+      const yearGroups = {};
+      clientSideData.forEach((item, index) => {
+        const year = item.year || '未知';
+        if (!yearGroups[year]) {
+          yearGroups[year] = [];
+        }
+        yearGroups[year].push({ ...item, originalIndex: index });
+      });
+
+      // 按年份倒序
+      const sortedYears = Object.keys(yearGroups).sort((a, b) => b - a);
+
+      let html = '';
+      sortedYears.forEach((year, yearIdx) => {
+        const yearItems = yearGroups[year];
+        
+        html += `
+          <div class="relative flex items-center py-8">
+            <div class="absolute left-1/2 -translate-x-1/2 w-4 h-4 bg-black dark:bg-white rounded-full z-10"></div>
+            <div class="absolute left-1/2 -translate-x-1/2 top-4 bottom-0 w-0.5 bg-black dark:bg-white"></div>
+            <div class="w-full flex justify-center">
+              <span class="text-3xl md:text-5xl font-serif font-bold bg-white dark:bg-black px-4 relative z-20">${year}</span>
+            </div>
+          </div>
+
+          <div class="space-y-8 pb-8">
+        `;
+
+        yearItems.forEach((item, idx) => {
+          const isLeft = idx % 2 === 0;
+          html += `
+            <div class="relative flex items-center ${isLeft ? 'flex-row' : 'flex-row-reverse'}">
+              <div class="absolute left-1/2 -translate-x-1/2 w-0.5 h-full bg-black dark:bg-white"></div>
+              
+              <div class="w-[calc(50%-2rem)] ${isLeft ? 'mr-auto' : 'ml-auto'}">
+                <div class="daily-photo protected-gallery cursor-zoom-in" data-index="${item.originalIndex}" style="pointer-events: auto;">
+                  <div class="protection-overlay" aria-hidden="true"></div>
+                  <div class="border-2 border-black dark:border-white">
+                    <div class="overflow-hidden">
+                      <img 
+                        src="${item.thumbnail.src}" 
+                        alt="${item.title}"
+                        class="w-full h-auto object-cover hover:opacity-90 transition-opacity"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div class="p-3 border-t-2 border-black dark:border-white">
+                      <div class="flex items-baseline justify-between">
+                        <span class="text-xs font-bold uppercase">${item.year}</span>
+                        <span class="text-[10px] uppercase opacity-70">${item.specs.camera}</span>
+                      </div>
+                      <h3 class="text-sm font-bold mt-1">${item.title}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-black dark:bg-white rounded-full z-10"></div>
+            </div>
+          `;
+        });
+
+        html += `</div>`;
+      });
+
+      timelineView.innerHTML = html;
+
+      // 重新绑定时间线视图中的点击事件
+      timelineView.querySelectorAll('.daily-photo').forEach(el => {
+        el.addEventListener('click', () => {
+          const index = parseInt(el.dataset.index, 10);
+          if (index >= 0 && index < clientSideData.length) {
+            window.dispatchEvent(new CustomEvent('open-lightbox', { 
+              detail: { index } 
+            }));
+          }
+        });
+      });
+    }
+
+    // 切换视图
+    if (toggleBtn && masonryView && timelineView) {
+      // 初始渲染时间线
+      renderTimeline();
+
+      toggleBtn.addEventListener('click', () => {
+        isTimelineView = !isTimelineView;
+        
+        if (isTimelineView) {
+          masonryView.classList.add('hidden');
+          timelineView.classList.remove('hidden');
+          toggleBtn.querySelector('span:last-child').textContent = '网格';
+          toggleBtn.querySelector('.material-symbols-outlined').textContent = 'grid_view';
+        } else {
+          timelineView.classList.add('hidden');
+          masonryView.classList.remove('hidden');
+          toggleBtn.querySelector('span:last-child').textContent = '时间线';
+          toggleBtn.querySelector('.material-symbols-outlined').textContent = 'view_timeline';
+        }
+      });
+    }
   }
-  
+
+  // 立即执行一次（处理页面首次加载）
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDaily);
+  } else {
+    initDaily();
+  }
+  // 同时监听 astro:page-load（处理 SPA 导航）
   document.addEventListener('astro:page-load', initDaily);
 </script>
 
 <style>
-  /* 页面加载动画 */
-  @keyframes fadeUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  /* 粗野主义风格 */
+  a {
+    text-decoration: none;
   }
 
-  /* 卡片入场动画 */
-  .break-inside-avoid {
-    animation: fadeUp 0.6s ease-out forwards;
-    opacity: 0;
+  .daily-photo:hover {
+    cursor: zoom-in;
   }
 
-  /* 错开动画延迟 */
-  .break-inside-avoid:nth-child(1) { animation-delay: 0.05s; }
-  .break-inside-avoid:nth-child(2) { animation-delay: 0.1s; }
-  .break-inside-avoid:nth-child(3) { animation-delay: 0.15s; }
-  .break-inside-avoid:nth-child(4) { animation-delay: 0.2s; }
-  .break-inside-avoid:nth-child(5) { animation-delay: 0.25s; }
-  .break-inside-avoid:nth-child(6) { animation-delay: 0.3s; }
-  .break-inside-avoid:nth-child(7) { animation-delay: 0.35s; }
-  .break-inside-avoid:nth-child(8) { animation-delay: 0.4s; }
-  .break-inside-avoid:nth-child(9) { animation-delay: 0.45s; }
-  .break-inside-avoid:nth-child(10) { animation-delay: 0.5s; }
-  .break-inside-avoid:nth-child(11) { animation-delay: 0.55s; }
-  .break-inside-avoid:nth-child(12) { animation-delay: 0.6s; }
-
-  /* 列布局 */
+  /* 列布局 - 瀑布流 */
   .columns-1 { column-count: 1; }
   @media (min-width: 768px) { .columns-1 { column-count: 2; } }
   @media (min-width: 1024px) { .columns-1 { column-count: 3; } }
@@ -295,14 +389,19 @@ const currentPath: string = "daily";
     scroll-behavior: smooth;
   }
 
-  /* 隐藏滚动条但保持功能 */
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  /* ===== 时间线视图样式 ===== */
+  #timeline-view .daily-photo {
+    transition: transform 0.2s ease;
   }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
+
+  #timeline-view .daily-photo:hover {
+    transform: scale(1.02);
+  }
+
+  /* 移动端隐藏切换按钮 */
+  @media (max-width: 767px) {
+    #view-toggle {
+      display: none !important;
+    }
   }
 </style>
-
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" slot="head" />

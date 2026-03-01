@@ -1,8 +1,6 @@
 ---
 import fs from "node:fs/promises";
 import path from "node:path";
-import Footer from "../components/Footer.astro";
-import Navigation from "../components/Navigation.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 const allImages = import.meta.glob("../images/*/*.{jpg,jpeg,png,webp}", {
@@ -94,266 +92,220 @@ const sortedCollections = Object.keys(collectionGroups).sort();
 const currentPath: string = "";
 ---
 
-<BaseLayout title="影集画廊" description="精选摄影集">
-  <div class="bg-white dark:bg-black text-black dark:text-white font-sans tracking-tight min-h-screen">
-    
-    <!-- 导航栏 -->
-    <Navigation currentPath={currentPath} />
+<BaseLayout title="首页" description="摄影作品集">
+  <div class="w-full bg-white dark:bg-black text-black dark:text-white font-mono min-h-screen">
 
-    <!-- 底层：全屏图片背景层 -->
-    <div class="fixed inset-0 z-0 pointer-events-none">
-      {sortedCollections.map((name, index) => {
-        const info = collectionGroups[name];
-        return (
-          <img 
-            id={`bg-img-${index}`}
-            src={info.cover} 
-            alt=""
-            class="w-full h-full object-cover absolute inset-0 opacity-0 transition-opacity duration-500"
-            aria-hidden="true"
-          />
-        );
-      })}
-      <!-- 全局蒙层 -->
-      <div id="bg-overlay" class="absolute inset-0 bg-white/60 dark:bg-black/50 opacity-0 transition-opacity duration-500"></div>
-    </div>
+    <header class="fixed top-0 left-0 w-full z-50 border-b-2 border-black dark:border-white bg-white dark:bg-black flex justify-center">
+      <div class="w-full flex items-center justify-between px-4 py-3 max-w-7xl">
+        <a href="/" class="text-xl font-bold tracking-widest hover:underline">拙石</a>
+        <span class="text-sm">首页</span>
+      </div>
+    </header>
 
-    <!-- 顶层：文字内容层 -->
-    <div class="relative z-10 w-full min-h-screen px-4 md:px-8 pt-32 pb-24">
-      
-      <!-- 双列布局 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 max-w-6xl">
-        
-        <!-- 左侧列：相册列表 -->
-        <div class="flex flex-col">
-          {sortedCollections.length > 0 ? (
-            <ul class="space-y-0">
-              {sortedCollections.map((name, index) => {
-                const info = collectionGroups[name];
-                const rawName = name.replace(/^\d+_/, '');
-                const parts = rawName.split('_');
-                const zhTitle = parts[0] || rawName;
-                const enTitle = parts[1] || "无标题";
+    <main class="w-full pt-16 min-h-screen flex justify-center">
+      <div class="w-full px-4 py-8 md:py-12 max-w-7xl">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+          <div class="border-2 border-black dark:border-white">
+            {sortedCollections.length > 0 ? (
+              <ul>
+                {sortedCollections.map((name, index) => {
+                  const info = collectionGroups[name];
+                  const rawName = name.replace(/^\d+_/, '');
+                  const parts = rawName.split('_');
+                  const zhTitle = parts[0] || rawName;
+                  const enTitle = parts[1] || "";
 
                 return (
                   <li>
-                    <a 
+                    <a
                       href={`/collection/${name}`}
-                      class="collection-item block py-4 md:py-6 border-b border-gray-200 dark:border-gray-800 no-underline group"
-                      data-index={index}
+                      class="collection-item block py-4 px-4 border-b-2 border-black dark:border-white last:border-b-0 no-underline flex items-baseline justify-between hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+                      data-cover={info.cover}
                       data-external={info.external || ''}
                     >
-                      <div class="flex items-baseline justify-between">
-                        <span class="text-2xl md:text-3xl font-light text-black dark:text-white group-hover:font-semibold transition-[font-weight] duration-200">
-                          {zhTitle}
+                        <span class="text-lg md:text-xl font-bold">
+                          {(index + 1).toString().padStart(2, '0')}. {zhTitle}
                         </span>
-                        <span class="text-xs md:text-sm font-light uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                          {enTitle}
+                        <span class="text-xs md:text-sm uppercase tracking-widest">
+                          {enTitle} [{info.count}]
                         </span>
-                      </div>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <div class="text-center py-12">
-              <p class="text-gray-500 dark:text-gray-400 text-sm">暂无影集</p>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div class="p-8 text-center border-b-2 border-black dark:border-white">
+                <p class="text-lg">暂无影集</p>
+              </div>
+            )}
+          </div>
+
+          <div class="hidden md:block">
+            <div class="sticky top-20 border-2 border-black dark:border-white p-2">
+              <div class="aspect-[4/3] bg-black overflow-hidden relative protected-gallery">
+                <div class="protection-overlay" aria-hidden="true"></div>
+                <img
+                  id="preview-img"
+                  src={sortedCollections.length > 0 ? collectionGroups[sortedCollections[0]].cover : ''}
+                  alt="预览"
+                  class="w-full h-full object-cover absolute inset-0"
+                />
+                <div
+                  id="static-overlay"
+                  class="absolute inset-0 opacity-0 pointer-events-none"
+                  style="background: repeating-radial-gradient(#000 0 0.0001%, #fff 0 0.0002%) 50% 0/2000px 2000px, repeating-conic-gradient(#000 0 0.0001%, #fff 0 0.0002%) 60% 60%/2000px 2000px; background-blend-mode: difference;"
+                ></div>
+              </div>
+              <div class="mt-3 text-center">
+                <p id="preview-title" class="text-sm font-bold">
+                  {sortedCollections.length > 0 ? sortedCollections[0].replace(/^\d+_/, '').split('_')[0] : ''}
+                </p>
+                <p id="preview-desc" class="text-xs mt-1 opacity-70">
+                  {sortedCollections.length > 0 ? collectionGroups[sortedCollections[0]].external : ''}
+                </p>
+              </div>
             </div>
-          )}
+          </div>
+
         </div>
 
-        <!-- 右侧列：画廊简介 -->
-        <div class="hidden md:block">
-          <div class="sticky top-32">
-            <!-- 默认显示的网站简介 -->
-            <div id="default-intro" class="intro-content">
-              <p class="text-sm leading-relaxed text-gray-600 dark:text-gray-400 font-light mb-8">
-                用镜头捕捉时光的吉光片羽。每一个影集都是一段光影之旅，<br/>
-                穿越平凡生活中的微妙诗意，定格那些稍纵即逝的瞬间。
-              </p>
-            </div>
-            
-            <!-- hover 时显示的作品集简介 -->
-            <div id="hover-intro" class="intro-content hidden">
-              <p class="text-base leading-relaxed text-gray-600 dark:text-gray-400 font-medium mb-8"></p>
-            </div>
-            
-            <div class="flex flex-col gap-3 text-xs tracking-widest uppercase text-gray-500 dark:text-gray-400">
-              <a href="#" class="hover:text-black dark:hover:text-white underline underline-offset-4">简历</a>
-              <a href="#" class="hover:text-black dark:hover:text-white underline underline-offset-4">邮箱</a>
-              <a href="#" class="hover:text-black dark:hover:text-white underline underline-offset-4">Instagram</a>
+        <div class="mt-12 pt-6 border-t-4 border-black dark:border-white">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+
+            <div class="flex flex-col gap-2 text-sm">
+              <a href="/stories" class="font-bold hover:underline">[ 故事 ]</a>
+              <a href="/daily" class="font-bold hover:underline">[ 日常 ]</a>
+              <a href="#" class="font-bold hover:underline">[ 简历 ]</a>
+              <a href="#" class="font-bold hover:underline">[ 邮箱 ]</a>
+              <a href="#" class="font-bold hover:underline">[ Instagram ]</a>
             </div>
 
-            <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
-              <p class="text-[10px] tracking-[0.2em] uppercase text-gray-400 dark:text-gray-600">
-                {sortedCollections.length} 个影集 · {Object.values(collectionGroups).reduce((acc, g) => acc + g.count, 0)} 张照片
-              </p>
+            <div class="text-sm">
+              <p>{sortedCollections.length} 个影集 · {Object.values(collectionGroups).reduce((acc, g) => acc + g.count, 0)} 张照片</p>
             </div>
           </div>
         </div>
 
       </div>
+    </main>
 
-      <!-- 移动端简介 (仅在移动端显示) -->
-      <div class="md:hidden mt-16 pt-8 border-t border-gray-200 dark:border-gray-800">
-        <p class="text-sm leading-relaxed text-gray-600 dark:text-gray-400 font-light mb-6">
-          用镜头捕捉时光的吉光片羽，每一个瞬间都值得被铭记。
-        </p>
-        <div class="flex flex-col gap-2 text-xs tracking-widest uppercase text-gray-500 dark:text-gray-400">
-          <a href="#" class="hover:text-black dark:hover:text-white underline underline-offset-4">简历</a>
-          <a href="#" class="hover:text-black dark:hover:text-white underline underline-offset-4">邮箱</a>
-          <a href="#" class="hover:text-black dark:hover:text-white underline underline-offset-4">Instagram</a>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- 页脚 -->
-    <Footer />
   </div>
 </BaseLayout>
 
 <script>
   function initHomepage() {
-    // 获取全局蒙层元素
-    const bgOverlay = document.getElementById('bg-overlay');
-    
-    // 获取右侧简介容器
-    const defaultIntro = document.getElementById('default-intro');
-    const hoverIntro = document.getElementById('hover-intro');
-
-    // 获取所有 collection-item 元素
+    const previewImg = document.getElementById('preview-img') as HTMLImageElement;
+    const previewTitle = document.getElementById('preview-title');
+    const previewDesc = document.getElementById('preview-desc');
+    const staticOverlay = document.getElementById('static-overlay');
     const collectionItems = document.querySelectorAll('.collection-item');
 
+    // 保存第一个项目的默认数据
+    const firstItem = collectionItems[0] as HTMLElement;
+    const defaultCover = firstItem?.dataset.cover || '';
+    const defaultExternal = firstItem?.dataset.external || '';
+    const defaultTitle = firstItem?.querySelector('span')?.textContent?.replace(/^\d+\.\s*/, '') || '';
+
+    let staticTimeout: ReturnType<typeof setTimeout>;
+
+    // 初始化时显示默认图片
+    if (previewImg && defaultCover) {
+      previewImg.src = defaultCover;
+    }
+
     collectionItems.forEach((item) => {
-      // mouseenter: 显示对应背景图和蒙层
       item.addEventListener('mouseenter', () => {
-        const index = (item as HTMLElement).dataset.index;
-        const externalContent = (item as HTMLElement).dataset.external;
-        
-        // 检测当前是否为深色模式
-        const isDark = document.documentElement.classList.contains('dark');
-        
-        if (index !== undefined) {
-          const bgImg = document.getElementById(`bg-img-${index}`);
-          if (bgImg) {
-            bgImg.classList.remove('opacity-0');
-            bgImg.classList.add('opacity-100');
-          }
-          // 显示蒙层
-          if (bgOverlay) {
-            bgOverlay.classList.remove('opacity-0');
-            bgOverlay.classList.add('opacity-100');
-          }
+        // 清除花屏定时器
+        clearTimeout(staticTimeout);
+
+        const cover = (item as HTMLElement).dataset.cover;
+        const external = (item as HTMLElement).dataset.external || '';
+        const title = item.querySelector('span')?.textContent?.replace(/^\d+\.\s*/, '') || '';
+
+        if (previewImg && cover) {
+          previewImg.src = cover;
+          previewImg.style.opacity = '1';
         }
-        
-        // 深色模式下改变右侧文字颜色以在蒙层上显示更清晰
-        // 亮色模式蒙层是半透明白色，文字保持深色即可
-        if (isDark && defaultIntro) {
-          const p = defaultIntro.querySelector('p');
-          if (p) {
-            p.classList.remove('text-gray-600', 'dark:text-gray-400');
-            p.classList.add('text-white', 'dark:text-white');
-          }
+        if (previewTitle && title) {
+          previewTitle.textContent = title;
         }
-        
-        // 显示作品集外部简介（如果有）
-        if (externalContent && hoverIntro && defaultIntro) {
-          const hoverP = hoverIntro.querySelector('p');
-          if (hoverP) {
-            hoverP.textContent = externalContent;
-            // 深色模式下使用白色文字
-            if (isDark) {
-              hoverP.classList.remove('text-gray-600', 'dark:text-gray-400');
-              hoverP.classList.add('text-white', 'dark:text-white');
-            }
-          }
-          defaultIntro.classList.add('hidden');
-          hoverIntro.classList.remove('hidden');
-          hoverIntro.classList.add('fade-in');
+        if (previewDesc) {
+          previewDesc.textContent = external;
+        }
+
+        // 隐藏花屏
+        if (staticOverlay) {
+          staticOverlay.style.opacity = '0';
         }
       });
 
-      // mouseleave: 隐藏对应背景图和蒙层
       item.addEventListener('mouseleave', () => {
-        const index = (item as HTMLElement).dataset.index;
-        const isDark = document.documentElement.classList.contains('dark');
-        
-        if (index !== undefined) {
-          const bgImg = document.getElementById(`bg-img-${index}`);
-          if (bgImg) {
-            bgImg.classList.remove('opacity-100');
-            bgImg.classList.add('opacity-0');
+        // 延迟显示花屏效果
+        staticTimeout = setTimeout(() => {
+          // 显示花屏
+          if (staticOverlay) {
+            staticOverlay.style.opacity = '1';
           }
-          // 隐藏蒙层
-          if (bgOverlay) {
-            bgOverlay.classList.remove('opacity-100');
-            bgOverlay.classList.add('opacity-0');
-          }
-        }
-        
-        // 恢复右侧文字颜色（仅深色模式需要恢复）
-        if (isDark && defaultIntro) {
-          const p = defaultIntro.querySelector('p');
-          if (p) {
-            p.classList.remove('text-white', 'dark:text-white');
-            p.classList.add('text-gray-600', 'dark:text-gray-400');
-          }
-        }
-        
-        // 恢复 hover 区域的文字颜色（仅深色模式需要恢复）
-        if (isDark && hoverIntro) {
-          const hoverP = hoverIntro.querySelector('p');
-          if (hoverP) {
-            hoverP.classList.remove('text-white', 'dark:text-white');
-            hoverP.classList.add('text-gray-600', 'dark:text-gray-400');
-          }
-        }
-        
-        // 恢复显示默认简介
-        if (hoverIntro && defaultIntro) {
-          hoverIntro.classList.add('hidden');
-          hoverIntro.classList.remove('fade-in');
-          defaultIntro.classList.remove('hidden');
-        }
+
+          // 0.75秒后变黑
+          setTimeout(() => {
+            // 图片变透明
+            if (previewImg) {
+              previewImg.style.opacity = '0';
+            }
+
+            // 标题和描述清空
+            if (previewTitle) {
+              previewTitle.textContent = '';
+            }
+            if (previewDesc) {
+              previewDesc.textContent = '';
+            }
+
+            // 隐藏花屏（显示纯黑背景）
+            if (staticOverlay) {
+              staticOverlay.style.opacity = '0';
+            }
+          }, 750);
+        }, 300);
       });
     });
   }
 
-  // 首次加载时执行
   initHomepage();
-  // View Transitions 返回时也执行
   document.addEventListener('astro:page-load', initHomepage);
 </script>
 
 <style>
-  /* 链接样式 */
+  /* 粗野主义风格 - 保留花屏效果 */
   a {
     text-decoration: none;
   }
-  
-  /* 右侧简介切换过渡 */
-  .intro-content {
-    transition: opacity 0.2s ease;
+
+  /* 列表项 hover 效果 */
+  .collection-item:hover {
+    cursor: pointer;
   }
-  
-  .intro-content.hidden {
-    display: none;
+
+  /* 花屏动画 - 大颗粒噪声 */
+  #static-overlay {
+    transition: opacity 0.3s ease;
+    animation: staticNoise 0.4s steps(2) infinite;
+    background-size: 20px 20px, 30px 30px;
   }
-  
-  .fade-in {
-    animation: fadeIn 0.25s ease forwards;
-  }
-  
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
+
+  @keyframes staticNoise {
+    0% {
+      background-position: 0 0, 0 0;
     }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+    50% {
+      background-position: 10px 10px, -10px -10px;
+    }
+    100% {
+      background-position: 0 0, 0 0;
     }
   }
 </style>

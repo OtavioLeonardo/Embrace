@@ -118,3 +118,54 @@ a {
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
 }
+
+/* ============================================
+   🛡️ 图片保护样式 - 防止下载
+   ============================================ */
+
+/* 方案一：禁止选中图片 */
+img.protected-img,
+.gallery-img,
+.thumbnail-img {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* 方案一：禁止拖拽图片 */
+img.protected-img,
+.gallery-img,
+.thumbnail-img {
+  -webkit-user-drag: none;
+  -moz-user-drag: none;
+  -ms-user-drag: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  pointer-events: auto;
+}
+
+/* 方案三：保护层容器 - 不影响点击但阻止直接选中 */
+.protected-gallery {
+  position: relative;
+  pointer-events: auto;
+}
+
+/* 保护层样式 - 完全透明但阻止选中 */
+.protection-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 允许在按钮/交互元素上正常操作 */
+button,
+[role="button"],
+.nav-btn,
+.interactive {
+  pointer-events: auto !important;
+}

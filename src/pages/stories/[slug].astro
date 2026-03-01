@@ -1,0 +1,185 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+// 获取所有故事
+export async function getStaticPaths() {
+  const stories = await getCollection("stories");
+  return stories.map((story) => ({
+    params: { slug: story.slug },
+    props: { story },
+  }));
+}
+
+const { story } = Astro.props;
+const { Content } = await render(story);
+
+const currentPath: string = "stories";
+---
+
+<BaseLayout title={story.data.title} description={story.data.excerpt}>
+  <div class="w-full bg-white dark:bg-black text-black dark:text-white font-mono min-h-screen">
+
+    <header class="fixed top-0 left-0 w-full z-50 border-b-2 border-black dark:border-white bg-white dark:bg-black flex justify-center">
+      <div class="w-full flex items-center justify-between px-4 py-3 max-w-7xl">
+        <a href="/" class="text-xl font-bold tracking-widest hover:underline">拙石</a>
+        <div class="flex items-center gap-4">
+          <a href="/stories" class="text-sm hover:underline">故事</a>
+        </div>
+      </div>
+    </header>
+
+    <div id="hero-image" class="fixed inset-0 z-0 overflow-hidden">
+      <img
+        src={story.data.cover.src}
+        alt=""
+        class="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl"
+      />
+      <div class="absolute inset-0 flex items-center justify-center p-4 md:p-8">
+        <img
+          src={story.data.cover.src}
+          alt={story.data.title}
+          class="max-w-full max-h-full object-contain shadow-2xl"
+        />
+      </div>
+      <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-60">
+        <span class="text-xs uppercase tracking-widest">向下滚动</span>
+        <svg class="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+        </svg>
+      </div>
+    </div>
+
+    <div class="relative z-10 w-full">
+      
+      <div style="height: 150vh;"></div>
+
+      <div id="content-section" class="w-full bg-white dark:bg-black border-t-2 border-black dark:border-white flex flex-col items-center">
+        
+        <div class="w-full max-w-4xl px-4 py-12 md:py-20">
+          <div class="w-full aspect-[16/9] md:aspect-[21/9] overflow-hidden mb-8 border-2 border-black dark:border-white">
+            <img
+              src={story.data.cover.src}
+              alt={story.data.title}
+              class="w-full h-full object-cover"
+            />
+          </div>
+          
+          <div class="mb-4">
+            <span class="text-xs font-bold uppercase opacity-70">
+              {new Date(story.data.date).toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" })}
+            </span>
+          </div>
+          <h1 class="text-3xl md:text-5xl font-serif font-light mb-4">
+            {story.data.title}
+          </h1>
+          {story.data.excerpt && (
+            <p class="text-lg opacity-70">
+              {story.data.excerpt}
+            </p>
+          )}
+        </div>
+
+        <div class="w-full max-w-3xl px-4 pb-16 story-content">
+          <Content />
+        </div>
+
+        <div class="w-full px-4 pb-8 max-w-7xl">
+          <div class="pt-6 border-t-4 border-black dark:border-white">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div class="flex flex-col gap-2 text-sm">
+                <a href="/" class="font-bold hover:underline">[ 首页 ]</a>
+                <a href="/stories" class="font-bold hover:underline">[ 故事 ]</a>
+                <a href="/daily" class="font-bold hover:underline">[ 日常 ]</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</BaseLayout>
+
+<script>
+  const heroImage = document.getElementById('hero-image');
+  const contentSection = document.getElementById('content-section');
+  
+  // 滚动时控制全屏照片的透明度和位置
+  window.addEventListener('scroll', () => {
+    const scrollY = window.scrollY;
+    const windowHeight = window.innerHeight;
+    
+    // 计算滚动进度 (0 = 顶部, 1 = 滚动了一个屏幕高度)
+    const progress = Math.min(scrollY / windowHeight, 1);
+    
+    // 全屏照片：透明度从 1 到 0
+    if (heroImage) {
+      heroImage.style.opacity = String(1 - progress);
+      heroImage.style.transform = `translateY(${scrollY * 0.3}px)`;
+    }
+  });
+</script>
+
+<style is:global>
+  /* 故事内容样式 */
+  .story-content {
+    font-size: 1.125rem;
+    line-height: 1.8;
+  }
+
+  .story-content p {
+    margin-bottom: 1.5em;
+  }
+
+  .story-content h1,
+  .story-content h2,
+  .story-content h3,
+  .story-content h4 {
+    font-family: serif;
+    font-weight: 300;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+  }
+
+  .story-content h1 { font-size: 2rem; }
+  .story-content h2 { font-size: 1.5rem; }
+  .story-content h3 { font-size: 1.25rem; }
+
+  .story-content img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border: 2px solid;
+    margin: 2em 0;
+  }
+
+  .story-content a {
+    text-decoration: underline;
+  }
+
+  .story-content blockquote {
+    border-left: 4px solid;
+    padding-left: 1rem;
+    font-style: italic;
+    margin: 1.5em 0;
+  }
+
+  .story-content ul,
+  .story-content ol {
+    margin: 1em 0;
+    padding-left: 1.5em;
+  }
+
+  .story-content li {
+    margin-bottom: 0.5em;
+  }
+
+  .story-content hr {
+    border: none;
+    border-top: 2px solid;
+    margin: 2em 0;
+  }
+</style>

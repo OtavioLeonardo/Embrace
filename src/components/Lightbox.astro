@@ -113,7 +113,6 @@ const {
 <script is:inline define:vars={{ items, enableKeyboard, enableSwipe, animationDuration }}>
   // items 来自 define:vars，在此声明避免 IDE 警告
   // @ts-nocheck - Astro inline script 类型检查限制
-  var items;
   
   // 灯箱功能
   function initLightbox() {
@@ -197,7 +196,7 @@ const {
     // 监听来自其他组件的自定义事件（如 daily.astro 的 onclick）
     window.addEventListener('open-lightbox', (e) => {
       const index = e.detail?.index;
-      if (typeof index === 'number') {
+      if (typeof index === 'number' && index >= 0 && index < items.length) {
         window.openLightbox(index);
       }
     });
@@ -307,5 +306,12 @@ const {
   }
 
   // 初始化
+  // 立即执行一次（处理页面首次加载）
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLightbox);
+  } else {
+    initLightbox();
+  }
+  // 同时监听 astro:page-load（处理 SPA 导航）
   document.addEventListener('astro:page-load', initLightbox);
 </script>
